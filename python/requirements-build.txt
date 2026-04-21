@@ -1,0 +1,14 @@
+# Runtime deps needed when building the sidecar binary with PyInstaller.
+# Install with: python3 -m pip install -r python/requirements-build.txt
+#
+# PyInstaller itself.
+pyinstaller>=6.8
+
+# Hard runtime dependency of the sidecar — used by util/crypto.py (AES-GCM).
+cryptography>=43
+
+# --- Windows-only optional extras -----------------------------------------
+# These packages only have binary wheels on Windows; `;sys_platform == 'win32'`
+# markers ensure `pip install -r` stays green on macOS/Linux CI hosts.
+pywin32>=306; sys_platform == "win32"
+pymssql>=2.2;  sys_platform == "win32"

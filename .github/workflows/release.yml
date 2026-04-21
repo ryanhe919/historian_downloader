@@ -1,0 +1,106 @@
+name: release
+
+# 仅在推 v* tag（如 v1.0.0、v1.2.3-rc.1）或手动触发时执行。
+# 产物：Windows NSIS 安装包（.exe），自动附加到同名 GitHub Release。
+#
+# 使用流程：
+#   1. 在 package.json 里把 version 改成要发布的版本（如 1.2.0）
+#   2. git commit + git tag v1.2.0 && git push --follow-tags
+#   3. 本 workflow 自动跑：构建 sidecar + electron → 上传 .exe 到 Release
+#
+# 手动触发（workflow_dispatch）只构建 .exe 为 artifact，不创建 Release。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  # 创建 / 编辑 GitHub Releases 需要写权限
+  contents: write
+
+jobs:
+  windows:
+    name: Build Windows .exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm 10
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Python 3.11
+        # 3.11 的 pymssql / pywin32 wheel 覆盖最广、PyInstaller 6.x 兼容最稳
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python build deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pyinstaller>=6.8" "cryptography>=43" "pywin32>=306" "pymssql>=2.2"
+
+      - name: Install Node deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build sidecar (PyInstaller → hd-sidecar.exe)
+        run: pnpm run sidecar:build
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Build renderer + main (electron-vite)
+        run: pnpm exec electron-vite build
+
+      - name: Package Windows installer (electron-builder, unsigned)
+        # TODO(signing): 配好 EV 代码签名证书后，把 CSC_LINK / CSC_KEY_PASSWORD
+        # 写进仓库 secrets，并把 electron-builder.yml 里的
+        # `win.signAndEditExecutable` 改成 true。
+        env:
+          # 关掉 electron-builder 自动 publish（publish: generic url 还是占位）。
+          # 我们用下面的 softprops/action-gh-release 显式上传。
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: pnpm exec electron-builder --win --publish never
+
+      - name: List dist contents
+        shell: bash
+        run: ls -la dist/
+
+      - name: Upload workflow artifact (always)
+        # 任何触发方式（tag / workflow_dispatch）都上传一份 artifact，
+        # 方便调试与内部分发。
+        uses: actions/upload-artifact@v4
+        with:
+          name: historiandownloader-windows
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/*-setup.exe
+            dist/*.blockmap
+            dist/latest.yml
+
+      - name: Create GitHub Release (tag push only)
+        # 只有 tag 触发才发布 Release；workflow_dispatch 手动跑只出 artifact。
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          # tag_name / name 默认取自 github.ref_name（即 "v1.2.0"）
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # 含 "-" 的 tag（v1.2.0-rc.1）自动标记为 prerelease
+          generate_release_notes: true
+          files: |
+            dist/*-setup.exe
+            dist/*.blockmap
+            dist/latest.yml

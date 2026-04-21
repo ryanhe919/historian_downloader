@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hd-sidecar"
+version = "0.1.0"
+description = "Historian Downloader Python sidecar (JSON-RPC 2.0 over stdio)"
+requires-python = ">=3.10"
+authors = [{ name = "Historian Downloader Team" }]
+dependencies = [
+  "cryptography>=42",
+]
+
+[project.optional-dependencies]
+excel = ["openpyxl>=3.1"]
+# ``pymssql`` works cross-platform but is grouped with ``pywin32`` here since
+# both are required only when talking to real historians (Proficy iFix and
+# Wonderware InTouch).
+windows = ["pywin32>=306", "pymssql>=2.2"]
+dev = ["pytest>=8"]
+build = ["pyinstaller>=6.8"]
+
+[tool.setuptools]
+packages = ["rpc", "adapters", "services", "storage", "util"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "asyncio: run this async test function via asyncio.run()",
+]

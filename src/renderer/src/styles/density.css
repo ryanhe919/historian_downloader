@@ -1,0 +1,11 @@
+/*
+ * Density overrides — applied via [data-density="compact"] on <html>.
+ * TODO: 压缩间距（Wave 2 联调时再细调）。目前 comfortable 走 globals.css 的默认值。
+ *
+ * [data-density="compact"] {
+ *   // e.g. tighter row heights / gaps / font sizes for information-dense screens
+ *   .card-body { padding: 14px; }
+ *   .tree-row  { height: 26px; }
+ *   .step      { padding: 6px 8px; }
+ * }
+ */

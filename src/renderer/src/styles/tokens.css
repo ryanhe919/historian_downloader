@@ -1,0 +1,418 @@
+/*
+ * TimeUI — Colors & Type
+ * Derived directly from @timeui/tokens + lightTheme / darkTheme.
+ * Aligned to HeroUI design language, WCAG AA.
+ */
+
+/* ---------- FONT FAMILIES (system stack; matches @timeui/tokens) ---------- */
+:root {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+
+  /* Docs-site editorial stack (from apps/docs globals.css) */
+  --font-display:
+    Fraunces, 'Iowan Old Style', 'Apple Garamond', 'Palatino Linotype', Georgia, 'Songti SC', serif;
+
+  /* ---------- TYPE SCALE (px) ---------- */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px; /* body default */
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 20px;
+  --fs-3xl: 24px;
+  --fs-4xl: 30px;
+  --fs-5xl: 38px;
+  --fs-6xl: 48px;
+
+  --fw-thin: 100;
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+  --fw-black: 900;
+
+  --lh-none: 1;
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-base: 1.5;
+  --lh-relaxed: 1.625;
+  --lh-loose: 2;
+
+  --ls-tighter: -0.04em;
+  --ls-tight: -0.02em;
+  --ls-normal: 0;
+  --ls-wide: 0.02em;
+  --ls-wider: 0.04em;
+  --ls-widest: 0.08em;
+
+  /* ---------- PALETTE (10-stop ramps, HeroUI-aligned) ---------- */
+  /* gray (neutral) */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #404040;
+  --gray-800: #262626;
+  --gray-900: #171717;
+
+  --blue-50: #e6f4ff;
+  --blue-100: #bae0ff;
+  --blue-200: #91caff;
+  --blue-300: #69b1ff;
+  --blue-400: #4096ff;
+  --blue-500: #1677ff;
+  --blue-600: #0958d9;
+  --blue-700: #003eb3;
+  --blue-800: #002c8c;
+  --blue-900: #001d66;
+
+  --green-50: #f6ffed;
+  --green-100: #d9f7be;
+  --green-200: #b7eb8f;
+  --green-300: #95de64;
+  --green-400: #73d13d;
+  --green-500: #52c41a;
+  --green-600: #389e0d;
+  --green-700: #237804;
+  --green-800: #135200;
+  --green-900: #092b00;
+
+  --red-50: #fff1f0;
+  --red-100: #ffccc7;
+  --red-200: #ffa39e;
+  --red-300: #ff7875;
+  --red-400: #ff4d4f;
+  --red-500: #f5222d;
+  --red-600: #cf1322;
+  --red-700: #a8071a;
+  --red-800: #820014;
+  --red-900: #5c0011;
+
+  --orange-50: #fff7e6;
+  --orange-100: #ffe7ba;
+  --orange-200: #ffd591;
+  --orange-300: #ffc069;
+  --orange-400: #ffa940;
+  --orange-500: #fa8c16;
+  --orange-600: #d46b08;
+  --orange-700: #ad4e00;
+  --orange-800: #873800;
+  --orange-900: #612500;
+
+  --yellow-50: #feffe6;
+  --yellow-100: #ffffb8;
+  --yellow-200: #fffb8f;
+  --yellow-300: #fff566;
+  --yellow-400: #ffec3d;
+  --yellow-500: #fadb14;
+  --yellow-600: #d4b106;
+  --yellow-700: #ad8b00;
+  --yellow-800: #876800;
+  --yellow-900: #614700;
+
+  --purple-50: #f9f0ff;
+  --purple-100: #efdbff;
+  --purple-200: #d3adf7;
+  --purple-300: #b37feb;
+  --purple-400: #9254de;
+  --purple-500: #722ed1;
+  --purple-600: #531dab;
+  --purple-700: #391085;
+  --purple-800: #22075e;
+  --purple-900: #120338;
+
+  --cyan-50: #e6fffb;
+  --cyan-100: #b5f5ec;
+  --cyan-200: #87e8de;
+  --cyan-300: #5cdbd3;
+  --cyan-400: #36cfc9;
+  --cyan-500: #13c2c2;
+  --cyan-600: #08979c;
+  --cyan-700: #006d75;
+  --cyan-800: #00474f;
+  --cyan-900: #002329;
+
+  --magenta-50: #fff0f6;
+  --magenta-100: #ffd6e7;
+  --magenta-200: #ffadd2;
+  --magenta-300: #ff85c0;
+  --magenta-400: #f759ab;
+  --magenta-500: #eb2f96;
+  --magenta-600: #c41d7f;
+  --magenta-700: #9e1068;
+  --magenta-800: #780650;
+  --magenta-900: #520339;
+
+  --volcano-50: #fff2e8;
+  --volcano-100: #ffd8bf;
+  --volcano-200: #ffbb96;
+  --volcano-300: #ff9c6e;
+  --volcano-400: #ff7a45;
+  --volcano-500: #fa541c;
+  --volcano-600: #d4380d;
+  --volcano-700: #ad2102;
+  --volcano-800: #871400;
+  --volcano-900: #610b00;
+
+  /* ---------- SEMANTIC COLORS (light; HeroUI-aligned) ---------- */
+  --c-primary: rgb(0, 111, 238);
+  --c-primary-fg: rgb(255, 255, 255);
+  --c-secondary: rgb(120, 40, 200);
+  --c-secondary-fg: #fff;
+  --c-success: rgb(23, 201, 100);
+  --c-success-fg: #000;
+  --c-warning: rgb(245, 165, 36);
+  --c-warning-fg: #000;
+  --c-danger: rgb(201, 12, 80);
+  --c-danger-fg: #fff;
+  --c-focus: rgb(0, 111, 238);
+
+  /* bg */
+  --bg-canvas: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-sunken: var(--gray-50);
+  --bg-muted: var(--gray-100);
+  --bg-overlay: rgba(0, 0, 0, 0.45);
+
+  /* text */
+  --fg1: var(--gray-900); /* primary */
+  --fg2: var(--gray-700); /* secondary */
+  --fg3: var(--gray-500); /* muted */
+  --fg-inverse: #fff;
+  --fg-link: var(--blue-600);
+  --fg-disabled: var(--gray-400);
+
+  /* border */
+  --border-subtle: var(--gray-100);
+  --border-default: var(--gray-200);
+  --border-strong: var(--gray-400);
+  --border-focus: var(--blue-500);
+
+  /* ---------- SPACING ---------- */
+  --sp-0: 0;
+  --sp-0_5: 2px;
+  --sp-1: 4px;
+  --sp-1_5: 6px;
+  --sp-2: 8px;
+  --sp-2_5: 10px;
+  --sp-3: 12px;
+  --sp-3_5: 14px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-9: 36px;
+  --sp-10: 40px;
+  --sp-11: 44px;
+  --sp-12: 48px;
+  --sp-14: 56px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+  --sp-28: 112px;
+  --sp-32: 128px;
+
+  /* ---------- RADIUS ---------- */
+  --r-none: 0;
+  --r-sm: 2px;
+  --r-md: 4px;
+  --r-lg: 8px;
+  --r-xl: 12px;
+  --r-2xl: 16px;
+  --r-full: 9999px;
+  /* Component radii (used by Button / Modal / Card). HeroUI has larger radii here. */
+  --rc-sm: 8px;
+  --rc-md: 12px;
+  --rc-lg: 14px;
+  --rc-full: 9999px;
+
+  /* ---------- SHADOWS ---------- */
+  --sh-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --sh-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+  --sh-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --sh-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.06);
+  --sh-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  --sh-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* ---------- BORDERS ---------- */
+  --bw-hair: 0.5px;
+  --bw-thin: 1px;
+  --bw-thick: 2px;
+  --bw-heavy: 4px;
+
+  /* ---------- MOTION ---------- */
+  --dur-instant: 0ms;
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-normal: 250ms;
+  --dur-slow: 320ms;
+  --dur-slower: 480ms;
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ---------- Z-INDEX ---------- */
+  --z-base: 0;
+  --z-docked: 10;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-banner: 1200;
+  --z-overlay: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-toast: 1700;
+  --z-tooltip: 1800;
+}
+
+/* ---------- DARK THEME ---------- */
+[data-theme='dark'] {
+  --c-primary: rgb(0, 111, 238);
+  --c-primary-fg: #fff;
+  --c-secondary: rgb(147, 83, 211);
+  --c-success: rgb(23, 201, 100);
+  --c-warning: rgb(245, 165, 36);
+  --c-danger: rgb(201, 12, 80);
+  --c-focus: rgb(0, 111, 238);
+
+  --bg-canvas: var(--gray-900);
+  --bg-surface: var(--gray-800);
+  --bg-raised: var(--gray-700);
+  --bg-sunken: #000000;
+  --bg-muted: var(--gray-800);
+  --bg-overlay: rgba(0, 0, 0, 0.65);
+
+  --fg1: var(--gray-50);
+  --fg2: var(--gray-200);
+  --fg3: var(--gray-400);
+  --fg-inverse: var(--gray-900);
+  --fg-link: var(--blue-300);
+  --fg-disabled: var(--gray-600);
+
+  --border-subtle: var(--gray-800);
+  --border-default: var(--gray-700);
+  --border-strong: var(--gray-500);
+  --border-focus: var(--blue-400);
+}
+
+/* ---------- SEMANTIC TEXT STYLES ---------- */
+/* Scale echoes HeroUI-in-product scale; compact, systematic. */
+h1,
+.h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-5xl); /* 38 */
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg1);
+}
+h2,
+.h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-4xl); /* 30 */
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg1);
+}
+h3,
+.h3 {
+  font-size: var(--fs-3xl); /* 24 */
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg1);
+}
+h4,
+.h4 {
+  font-size: var(--fs-xl); /* 18 */
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--fg1);
+}
+h5,
+.h5 {
+  font-size: var(--fs-lg); /* 16 */
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--fg1);
+}
+h6,
+.h6 {
+  font-size: var(--fs-md); /* 14 */
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-base);
+  color: var(--fg1);
+}
+
+p,
+.body {
+  font-size: var(--fs-md); /* 14 */
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-base);
+  color: var(--fg1);
+}
+.body-lg {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-base);
+}
+.body-sm {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-base);
+  color: var(--fg2);
+}
+.caption {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-base);
+  color: var(--fg3);
+}
+.overline {
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--fg3);
+}
+.display {
+  font-family: var(--font-display);
+  font-size: var(--fs-6xl);
+  font-weight: var(--fw-regular);
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+  color: var(--fg1);
+}
+
+code,
+.code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-md);
+  color: var(--fg1);
+}
+
+/* Base */
+html,
+body {
+  font-family: var(--font-sans);
+  color: var(--fg1);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
