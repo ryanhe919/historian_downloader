@@ -4,7 +4,7 @@
  * (table of picked tags or empty state), and a tip callout at the bottom.
  */
 import { useMemo, useState } from 'react'
-import { Icon, useToast } from '@/components/ui'
+import { Icon, Tag, useToast } from '@/components/ui'
 import { useRpcQuery } from '@/hooks/useRpc'
 import { useConnectionStore } from '@/stores/connection'
 import { useTagsStore } from '@/stores/tags'
@@ -148,9 +148,13 @@ export function SelectedPanel(): React.JSX.Element {
                   <td>{t.desc ?? '—'}</td>
                   <td>
                     {t.type && (
-                      <span className={`tag ${t.type === 'Analog' ? 'tag-primary' : 'tag-purple'}`}>
+                      <Tag
+                        size="sm"
+                        variant="soft"
+                        color={t.type === 'Analog' ? 'primary' : 'secondary'}
+                      >
                         {t.type}
-                      </span>
+                      </Tag>
                     )}
                   </td>
                   <td className="mono">{t.unit || '—'}</td>

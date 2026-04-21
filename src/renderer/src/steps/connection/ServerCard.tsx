@@ -30,6 +30,21 @@ function statusVisual(s: Server['status']): StatusVisual {
   }
 }
 
+function Dot(): React.JSX.Element {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: 'currentColor',
+        display: 'inline-block'
+      }}
+    />
+  )
+}
+
 export function ServerCard({
   server,
   isActive,
@@ -95,11 +110,9 @@ export function ServerCard({
                 marginTop: 10
               }}
             >
-              <span
-                className={`tag tag-${status.color === 'neutral' ? 'default' : status.color} dot`}
-              >
+              <Tag size="sm" variant="soft" color={status.color} startContent={<Dot />}>
                 {status.label}
-              </span>
+              </Tag>
               <span
                 style={{
                   fontSize: 11,

@@ -17,57 +17,44 @@ export interface QueueRowProps {
   onShowInFolder: (path: string) => void
 }
 
+type TagColor = 'neutral' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'
+
 function statusTag(status: ExportStatus): {
   label: string
-  className: string
+  color: TagColor
   progressVariant: 'default' | 'success' | 'warning' | 'danger'
   striped: boolean
 } {
   switch (status) {
     case 'done':
-      return {
-        label: '已完成',
-        className: 'tag tag-success dot',
-        progressVariant: 'success',
-        striped: false
-      }
+      return { label: '已完成', color: 'success', progressVariant: 'success', striped: false }
     case 'running':
-      return {
-        label: '下载中',
-        className: 'tag tag-primary dot',
-        progressVariant: 'default',
-        striped: true
-      }
+      return { label: '下载中', color: 'primary', progressVariant: 'default', striped: true }
     case 'paused':
-      return {
-        label: '已暂停',
-        className: 'tag tag-warning dot',
-        progressVariant: 'warning',
-        striped: false
-      }
+      return { label: '已暂停', color: 'warning', progressVariant: 'warning', striped: false }
     case 'queued':
-      return {
-        label: '等待中',
-        className: 'tag tag-default dot',
-        progressVariant: 'default',
-        striped: false
-      }
+      return { label: '等待中', color: 'neutral', progressVariant: 'default', striped: false }
     case 'failed':
-      return {
-        label: '失败',
-        className: 'tag tag-danger dot',
-        progressVariant: 'danger',
-        striped: false
-      }
+      return { label: '失败', color: 'danger', progressVariant: 'danger', striped: false }
     case 'cancelled':
     default:
-      return {
-        label: '已取消',
-        className: 'tag tag-default dot',
-        progressVariant: 'default',
-        striped: false
-      }
+      return { label: '已取消', color: 'neutral', progressVariant: 'default', striped: false }
   }
+}
+
+function Dot(): React.JSX.Element {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: 'currentColor',
+        display: 'inline-block'
+      }}
+    />
+  )
 }
 
 export function QueueRow({
@@ -90,7 +77,9 @@ export function QueueRow({
           <strong style={{ fontSize: 'var(--fs-sm)', letterSpacing: '-0.005em' }}>
             {task.name}
           </strong>
-          <span className={v.className}>{v.label}</span>
+          <Tag size="sm" variant="soft" color={v.color} startContent={<Dot />}>
+            {v.label}
+          </Tag>
           <span style={{ flex: 1 }} className="sp-right" />
           {task.status === 'running' ? (
             <Tooltip content="暂停">

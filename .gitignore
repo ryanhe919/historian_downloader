@@ -16,3 +16,4 @@ python/**/*.pyc
 python/.pytest_cache/
 resources/hd-sidecar/hd-sidecar
 resources/hd-sidecar/hd-sidecar.exe
+~/

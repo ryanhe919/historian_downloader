@@ -40,6 +40,12 @@ export function TitleBar(): React.JSX.Element {
   const setTweaksOpen = useAppStore((s) => s.setTweaksOpen)
   const toast = useToast()
 
+  // On macOS we use Electron's `titleBarStyle: 'hiddenInset'` which keeps
+  // the native traffic lights visible. Rendering our own dots would
+  // produce a second set — so skip them on darwin and reserve padding
+  // for the native cluster instead.
+  const isMac = typeof window !== 'undefined' && window.hd?.platform === 'darwin'
+
   const showPending = (label: string): void => {
     toast.show({
       status: 'info',
@@ -58,26 +64,32 @@ export function TitleBar(): React.JSX.Element {
 
   return (
     <div className="titlebar">
-      <div className="traffic" aria-label="Window controls">
-        <button
-          type="button"
-          className="traffic-dot close"
-          aria-label="关闭窗口"
-          onClick={() => handleTrafficAction('close')}
-        />
-        <button
-          type="button"
-          className="traffic-dot min"
-          aria-label="最小化"
-          onClick={() => handleTrafficAction('min')}
-        />
-        <button
-          type="button"
-          className="traffic-dot max"
-          aria-label="最大化"
-          onClick={() => handleTrafficAction('max')}
-        />
-      </div>
+      {isMac ? (
+        // Native traffic lights from Electron sit here; just reserve the
+        // horizontal gap so our content doesn't slide under them.
+        <div style={{ width: 72, flexShrink: 0 }} aria-hidden />
+      ) : (
+        <div className="traffic" aria-label="Window controls">
+          <button
+            type="button"
+            className="traffic-dot close"
+            aria-label="关闭窗口"
+            onClick={() => handleTrafficAction('close')}
+          />
+          <button
+            type="button"
+            className="traffic-dot min"
+            aria-label="最小化"
+            onClick={() => handleTrafficAction('min')}
+          />
+          <button
+            type="button"
+            className="traffic-dot max"
+            aria-label="最大化"
+            onClick={() => handleTrafficAction('max')}
+          />
+        </div>
+      )}
 
       <div className="brand">
         <img src={logoUrl} alt="" />
