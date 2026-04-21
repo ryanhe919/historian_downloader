@@ -26,7 +26,7 @@ interface TagsState {
 
 export const useTagsStore = create<TagsState>((set) => ({
   selectedIds: new Set(),
-  expandedIds: new Set(['line-a', 'line-a-boiler']),
+  expandedIds: new Set<string>(),
   searchQuery: '',
   selectedDetails: new Map(),
   toggleSelect: (id) =>

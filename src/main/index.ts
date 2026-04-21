@@ -6,6 +6,7 @@ import { SidecarSupervisor } from './sidecar/supervisor'
 import { RpcClient } from './rpc/client'
 import { registerRpcBridge } from './ipc/rpc-bridge'
 import { registerDialogHandlers } from './ipc/dialog'
+import { registerPathsHandlers } from './ipc/paths'
 import { registerShellHandlers } from './ipc/shell'
 
 initLogger()
@@ -37,6 +38,7 @@ app.whenReady().then(() => {
 
   registerDialogHandlers()
   registerShellHandlers()
+  registerPathsHandlers()
   registerRpcBridge({ client: rpcClient, supervisor })
 
   supervisor.start()

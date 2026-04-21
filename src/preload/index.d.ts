@@ -17,6 +17,15 @@ export interface HdShellApi {
   showInFolder(p: string): Promise<void>
 }
 
+export interface HdPathsApi {
+  /**
+   * Platform-appropriate default export directory
+   * (``~/Downloads/Historian`` on POSIX, ``%USERPROFILE%\\Downloads\\Historian``
+   * on Windows). The directory is **not** created by this call.
+   */
+  defaultExportDir(): Promise<string>
+}
+
 export interface HdEnv {
   isDev: boolean
   rpcMock: boolean
@@ -28,6 +37,7 @@ export interface HdBridge {
   off<E extends keyof RpcEventMap>(event: E, cb: (payload: RpcEventMap[E]) => void): void
   dialog: HdDialogApi
   shell: HdShellApi
+  paths: HdPathsApi
   platform: 'darwin' | 'win32' | 'linux'
   appVersion: string
   env: HdEnv

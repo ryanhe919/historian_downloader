@@ -7,7 +7,8 @@ const Channel = {
   SidecarStatus: 'hd:sidecar:status',
   PickFolder: 'hd:dialog:pickFolder',
   OpenPath: 'hd:shell:openPath',
-  ShowInFolder: 'hd:shell:showInFolder'
+  ShowInFolder: 'hd:shell:showInFolder',
+  DefaultExportDir: 'hd:paths:defaultExportDir'
 } as const
 
 type Listener<E extends keyof RpcEventMap> = (payload: RpcEventMap[E]) => void
@@ -87,6 +88,11 @@ const api = {
     },
     showInFolder(p: string): Promise<void> {
       return ipcRenderer.invoke(Channel.ShowInFolder, p) as Promise<void>
+    }
+  },
+  paths: {
+    defaultExportDir(): Promise<string> {
+      return ipcRenderer.invoke(Channel.DefaultExportDir) as Promise<string>
     }
   },
   platform: process.platform as 'darwin' | 'win32' | 'linux',

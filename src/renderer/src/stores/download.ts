@@ -3,6 +3,12 @@ import type { ExportFormat, ExportTask } from '@shared/domain-types'
 
 interface DownloadState {
   format: ExportFormat
+  /**
+   * Absolute output directory. Empty on first launch — DownloadStep
+   * resolves it to the Electron ``downloads`` path on mount so we never
+   * store a literal ``~`` (which earlier caused a ``~/Historian/Exports``
+   * folder to appear under the project root).
+   */
   outputDir: string
   tasks: Record<string, ExportTask>
   setFormat: (f: ExportFormat) => void
@@ -12,16 +18,9 @@ interface DownloadState {
   replaceTasks: (tasks: ExportTask[]) => void
 }
 
-const defaultOutputDir = (): string => {
-  if (typeof window !== 'undefined' && window.hd) {
-    return window.hd.platform === 'win32' ? 'D:\\Historian\\Exports' : '~/Historian/Exports'
-  }
-  return '~/Historian/Exports'
-}
-
 export const useDownloadStore = create<DownloadState>((set) => ({
   format: 'CSV',
-  outputDir: defaultOutputDir(),
+  outputDir: '',
   tasks: {},
   setFormat: (f) => set({ format: f }),
   setOutputDir: (p) => set({ outputDir: p }),

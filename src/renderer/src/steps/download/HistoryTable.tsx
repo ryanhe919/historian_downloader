@@ -25,6 +25,7 @@ import { useRpcMutation, useRpcQuery } from '@/hooks/useRpc'
 import { formatBytes, formatRows } from '@/lib/format'
 import { formatRangeShort } from '@/lib/time'
 import type { ExportHistoryItem } from '@shared/domain-types'
+import { exportErrorMessage } from './errors'
 
 interface DeleteTarget {
   id: string
@@ -58,7 +59,7 @@ export function HistoryTable(): React.JSX.Element {
       try {
         await openMut.mutate({ historyId: id })
       } catch (e) {
-        toast.error((e as Error).message, { title: '打开失败' })
+        toast.error(exportErrorMessage(e), { title: '打开失败' })
       }
     },
     [openMut, toast]
@@ -73,7 +74,7 @@ export function HistoryTable(): React.JSX.Element {
       setDeleteFile(false)
       await refetch()
     } catch (e) {
-      toast.error((e as Error).message, { title: '删除失败' })
+      toast.error(exportErrorMessage(e), { title: '删除失败' })
     }
   }, [deleteTarget, deleteFile, removeMut, refetch, toast])
 

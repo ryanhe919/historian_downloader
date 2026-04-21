@@ -20,6 +20,7 @@ CONNECTION_TIMEOUT = -32001
 OLE_COM_UNAVAILABLE = -32002
 CONNECTION_REFUSED = -32003
 AUTH_FAILED = -32004
+SERVER_NOT_FOUND = -32005
 
 TAG_NOT_FOUND = -32010
 TAG_TREE_FAIL = -32011
@@ -75,6 +76,11 @@ class ConnectionRefusedRpc(RpcError):
 class AuthFailed(RpcError):
     def __init__(self) -> None:
         super().__init__(AUTH_FAILED, "authentication failed")
+
+
+class ServerNotFound(RpcError):
+    def __init__(self, server_id: str) -> None:
+        super().__init__(SERVER_NOT_FOUND, f"server '{server_id}' not found")
 
 
 class TagNotFoundError(RpcError):

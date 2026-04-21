@@ -6,6 +6,7 @@ import csv
 import io
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,11 +31,39 @@ class WriteStats:
     bytes_appended: int
 
 
+def resolve_output_dir(dir_path: str | Path) -> Path:
+    """Normalize an output-dir path: expand ``~`` and resolve to absolute.
+
+    Does NOT create the directory or check permissions — that is
+    :func:`ensure_output_dir`'s job. Splitting the concerns lets callers
+    inspect the resolved path (e.g. for error messages) before filesystem
+    side effects.
+    """
+    raw = os.fspath(dir_path)
+    expanded = os.path.expanduser(raw)
+    absolute = os.path.abspath(expanded)
+    return Path(absolute)
+
+
 def ensure_output_dir(dir_path: str | Path) -> Path:
-    p = Path(dir_path)
+    """Resolve ``~``/relative paths, create the directory, and probe writability.
+
+    Raises :class:`errors.OutputDirUnwritable` (mapped to ``-32023``) when
+    creation fails, the path is not a directory, or it exists but is not
+    writable by the current process.
+    """
+    p = resolve_output_dir(dir_path)
     try:
         p.mkdir(parents=True, exist_ok=True)
-        # probe write permissions
+    except OSError as e:
+        raise errors.OutputDirUnwritable(str(p)) from e
+    if not p.is_dir():
+        raise errors.OutputDirUnwritable(str(p))
+    if not os.access(p, os.W_OK):
+        raise errors.OutputDirUnwritable(str(p))
+    # Belt-and-braces: actually write a probe file. os.access can lie on
+    # some network filesystems / ACL-heavy Windows shares.
+    try:
         probe = p / ".hd_write_probe"
         probe.write_text("ok", encoding="utf-8")
         probe.unlink(missing_ok=True)

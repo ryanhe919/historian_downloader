@@ -30,6 +30,8 @@ function errorMessage(err: unknown): string {
       return '数据源驱动异常'
     case ErrorCode.INVALID_RANGE:
       return '字段校验失败'
+    case ErrorCode.SERVER_NOT_FOUND:
+      return '该服务器不存在或已被删除，请刷新列表'
     case ErrorCode.SIDECAR_RESTARTED:
       return '后端刚刚重启，请重试'
     default:
@@ -56,6 +58,7 @@ export function ConnectionStep(): React.JSX.Element {
   const toast = useToast()
   const selectedServerId = useConnectionStore((s) => s.selectedServerId)
   const setSelectedServerId = useConnectionStore((s) => s.setSelectedServerId)
+  const setRuntimeStatus = useConnectionStore((s) => s.setRuntimeStatus)
 
   const { data, loading, error, refetch } = useRpcQuery('historian.listServers', undefined)
   const servers = useMemo<Server[]>(() => data ?? [], [data])
@@ -105,12 +108,16 @@ export function ConnectionStep(): React.JSX.Element {
 
   const handleTest = useCallback(
     async (override?: ConnectionDraft | Server) => {
-      const input: ConnectionDraft =
-        override && 'password' in override
+      const isServer = !!override && !('password' in override)
+      const input: ConnectionDraft = isServer
+        ? serverToDraft(override as Server)
+        : override
           ? (override as ConnectionDraft)
-          : override
-            ? serverToDraft(override as Server)
-            : draft
+          : draft
+      // `testing` / `connected` / `failed` overlay only makes sense for a
+      // persisted server row (we can't badge an unsaved draft).
+      const statusTargetId = isServer ? (override as Server).id : editingId
+      if (statusTargetId) setRuntimeStatus(statusTargetId, 'testing')
       try {
         const res = await testMut.mutate({
           server: {
@@ -125,17 +132,20 @@ export function ConnectionStep(): React.JSX.Element {
           }
         })
         if (res.ok) {
+          if (statusTargetId) setRuntimeStatus(statusTargetId, 'connected')
           toast.success(`连接成功 · ${res.latencyMs} ms`, {
             title: res.tagCount ? `${res.tagCount.toLocaleString()} 个标签` : '测试通过'
           })
         } else {
+          if (statusTargetId) setRuntimeStatus(statusTargetId, 'failed')
           toast.error(res.detail ?? '测试失败', { title: '连接失败' })
         }
       } catch (e) {
+        if (statusTargetId) setRuntimeStatus(statusTargetId, 'failed')
         toast.error(errorMessage(e), { title: '连接失败' })
       }
     },
-    [draft, testMut, toast]
+    [draft, editingId, setRuntimeStatus, testMut, toast]
   )
 
   const handleSave = useCallback(async () => {

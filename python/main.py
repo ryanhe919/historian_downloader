@@ -23,7 +23,6 @@ if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
 from adapters.factory import adapter_support, create_adapter
-from adapters.mock import MOCK_SERVERS
 from rpc import errors
 from rpc.dispatcher import Dispatcher
 from rpc.transport import LineTransport, configure_stdout
@@ -32,6 +31,7 @@ from services.writers import (
     build_header,
     ensure_output_dir,
     extension_for,
+    resolve_output_dir,
     supports_excel,
     validate_format,
 )
@@ -71,33 +71,16 @@ def _require(params: dict, key: str, typ: type | tuple[type, ...] | None = None)
 
 
 # ---------------------------------------------------------------------------
-# Server helpers — mock servers + DB-saved servers appear together.
+# Server helpers — look up a saved server record from SQLite.
 # ---------------------------------------------------------------------------
 
 
-def _mock_server_as_server_td(s: dict) -> dict:
-    return {
-        "id": s["id"],
-        "name": s["name"],
-        "type": s["type"],
-        "host": s["host"],
-        "hasPassword": False,
-        "timeoutS": 15,
-        "tls": False,
-        "windowsAuth": False,
-        "status": "ready",
-        "version": s.get("version"),
-        "tagCount": s.get("tagCount"),
-        "createdAt": "1970-01-01T00:00:00.000Z",
-        "updatedAt": "1970-01-01T00:00:00.000Z",
-    }
-
-
-def _resolve_server_config(storage: Storage, server_id: str) -> dict | None:
-    """Return a dict suitable for ``create_adapter`` — checks DB first then mocks."""
-    if server_id in {s["id"] for s in MOCK_SERVERS}:
-        return next(s for s in MOCK_SERVERS if s["id"] == server_id)
-    return storage.get_server(server_id)
+def _lookup_server(storage: Storage, server_id: str) -> dict:
+    """Return the SQLite-persisted server config, or raise ServerNotFound."""
+    row = storage.get_server(server_id)
+    if row is None:
+        raise errors.ServerNotFound(server_id)
+    return row
 
 
 # ---------------------------------------------------------------------------
@@ -119,10 +102,7 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
 
     @dispatcher.method("historian.listServers")
     async def _list_servers(_params):
-        saved = storage.list_servers()
-        saved_ids = {s["id"] for s in saved}
-        mock_views = [_mock_server_as_server_td(s) for s in MOCK_SERVERS if s["id"] not in saved_ids]
-        return saved + mock_views
+        return storage.list_servers()
 
     # ---- historian.testConnection ----
 
@@ -178,9 +158,7 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         sid = _require(params, "serverId", str)
         path = params.get("path")
         depth = int(params.get("depth") or 1)
-        server = _resolve_server_config(storage, sid)
-        if server is None:
-            raise errors.TagTreeFail(f"unknown server: {sid}")
+        server = _lookup_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.list_tag_tree(path=path, depth=depth)
@@ -200,9 +178,7 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         ftype = filter_.get("type")
         if ftype == "All":
             ftype = None
-        server = _resolve_server_config(storage, sid)
-        if server is None:
-            raise errors.TagTreeFail(f"unknown server: {sid}")
+        server = _lookup_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.search_tags(query, limit=limit, offset=offset, filter_type=ftype)
@@ -216,9 +192,7 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         params = _ensure_dict(params)
         sid = _require(params, "serverId", str)
         tag_id = _require(params, "tagId", str)
-        server = _resolve_server_config(storage, sid)
-        if server is None:
-            raise errors.TagTreeFail(f"unknown server: {sid}")
+        server = _lookup_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.get_tag_meta(tag_id)
@@ -247,9 +221,7 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         except ValueError:
             raise errors.InvalidSamplingError(sampling)
         max_points = int(params.get("maxPoints") or 240)
-        server = _resolve_server_config(storage, sid)
-        if server is None:
-            raise errors.TagTreeFail(f"unknown server: {sid}")
+        server = _lookup_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.preview_sample(tag_ids, start, end, sampling, max_points=max_points)
@@ -283,8 +255,13 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         fmt = _require(params, "format", str)
         validate_format(fmt)
 
-        output_dir = params.get("outputDir") or str(default_output_dir())
-        ensure_output_dir(output_dir)
+        raw_output_dir = params.get("outputDir") or str(default_output_dir())
+        # Expand ``~``/relatives BEFORE persisting so the task record carries
+        # an absolute path — important since the Electron renderer may send a
+        # POSIX tilde or a dev-relative path.
+        resolved_output_dir = str(resolve_output_dir(raw_output_dir))
+        ensure_output_dir(resolved_output_dir)
+        output_dir = resolved_output_dir
 
         name = params.get("name") or f"export_{_timestamp_slug()}"
 
@@ -392,6 +369,25 @@ def _timestamp_slug() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
 
+def _seed_mock_servers_if_requested(storage: Storage) -> None:
+    """Dev-mode convenience: when ``HD_FORCE_MOCK=1`` AND the DB has no saved
+    servers yet, populate it with the bundled ``MOCK_SERVERS`` so first-time
+    launches show something to click. Production (no env var) never seeds.
+
+    Re-seeds are guarded by the "empty DB" check only — if a dev deletes a
+    mock server it stays deleted until the DB is wiped.
+    """
+    if os.environ.get("HD_FORCE_MOCK") != "1":
+        return
+    if storage.list_servers():
+        return
+    # Local import keeps the production import graph free of mock data.
+    from adapters.mock import MOCK_SERVERS
+    for s in MOCK_SERVERS:
+        storage.save_server(s, server_id=s["id"])
+    log.info("HD_FORCE_MOCK=1: seeded %d mock servers into empty DB", len(MOCK_SERVERS))
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -405,6 +401,7 @@ async def amain() -> int:
 
     udir = user_data_dir()
     storage = Storage(udir / "hd.sqlite3")
+    _seed_mock_servers_if_requested(storage)
     dispatcher = Dispatcher()
 
     transport_holder: dict[str, LineTransport | None] = {"t": None}

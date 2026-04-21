@@ -5,6 +5,8 @@
  */
 import { useEffect, useMemo } from 'react'
 import {
+  Button,
+  Callout,
   Card,
   CardBody,
   CardHeader,
@@ -17,11 +19,13 @@ import {
 } from '@/components/ui'
 import { useRpcQuery } from '@/hooks/useRpc'
 import { formatBytes, formatRows } from '@/lib/format'
+import { isRpcError } from '@/lib/rpc'
 import { presetToRange } from '@/lib/time'
 import { useConnectionStore } from '@/stores/connection'
 import { useTagsStore } from '@/stores/tags'
 import { useTimeRangeStore } from '@/stores/timerange'
 import type { SamplingMode, TimeRange } from '@shared/domain-types'
+import { ErrorCode } from '@shared/error-codes'
 import { PresetPills } from './PresetPills'
 import { SamplingTabs } from './SamplingTabs'
 import { SegmentSlider } from './SegmentSlider'
@@ -42,11 +46,17 @@ function useEffectiveRange(): TimeRange | null {
   }, [activePreset, customRange])
 }
 
-/** Points-per-day by sampling mode — used for the row/size estimates. */
+/**
+ * Points-per-day by sampling mode — used for the row/size estimates.
+ *
+ * NOTE: `raw` assumes 1 Hz (86_400 points/day). Real Proficy Historian defaults
+ * to 1s sampling but collection rates are tag-specific; treat this as a coarse
+ * upper bound for sizing purposes only.
+ */
 function pointsPerDay(sampling: SamplingMode): number {
   switch (sampling) {
     case 'raw':
-      return 86_400 // 1 Hz assumption
+      return 86_400 // 1 Hz assumption — see note above
     case '1m':
       return 1_440
     case '5m':
@@ -55,6 +65,31 @@ function pointsPerDay(sampling: SamplingMode): number {
       return 24
     default:
       return 1_440
+  }
+}
+
+/**
+ * Translate the preview RPC error (sidecar code or generic Error) into
+ * Chinese copy appropriate for the Step 2 preview slot. Local to this file
+ * so the mapping can carry Step-2-specific lines (INVALID_RANGE, etc.).
+ */
+function previewErrorMessage(err: unknown): string {
+  if (!isRpcError(err)) return err instanceof Error ? err.message : '预览失败'
+  switch (err.code) {
+    case ErrorCode.INVALID_RANGE:
+      return '时间范围无效（开始时间晚于结束时间）'
+    case ErrorCode.INVALID_SAMPLING:
+      return '采样模式不支持'
+    case ErrorCode.TAG_NOT_FOUND:
+      return '标签不存在，请回上一步刷新'
+    case ErrorCode.OLE_COM_UNAVAILABLE:
+      return 'iFix 适配器需要在 Windows 上运行'
+    case ErrorCode.CONNECTION_TIMEOUT:
+      return '连接超时'
+    case ErrorCode.ADAPTER_DRIVER:
+      return `驱动异常：${err.message}`
+    default:
+      return err.message || '预览失败'
   }
 }
 
@@ -124,6 +159,17 @@ export function TimeRangeStep(): React.JSX.Element {
         选择时间范围、采样方式，并设置分段大小以避免一次性导出过多数据。
       </div>
 
+      {/* ---- Prerequisite guard ---- */}
+      {!serverId ? (
+        <div style={{ marginBottom: 14 }}>
+          <Callout variant="danger">请先在上一步选择并保存一个 Historian 服务器</Callout>
+        </div>
+      ) : tagIds.length === 0 ? (
+        <div style={{ marginBottom: 14 }}>
+          <Callout variant="warning">请先在上一步选择要导出的标签</Callout>
+        </div>
+      ) : null}
+
       {/* ---- Summary strip ---- */}
       <div
         style={{
@@ -177,7 +223,9 @@ export function TimeRangeStep(): React.JSX.Element {
                     onChange={(d) => {
                       if (!d) return
                       setCustomRange({
-                        start: customRange?.start ?? new Date(0).toISOString(),
+                        start:
+                          customRange?.start ??
+                          new Date(Date.now() - 30 * 86_400_000).toISOString(),
                         end: d.toISOString()
                       })
                     }}
@@ -235,6 +283,11 @@ export function TimeRangeStep(): React.JSX.Element {
           }
         />
         <CardBody>
+          {previewQuery.data?.truncated === true ? (
+            <div style={{ marginBottom: 8 }}>
+              <Callout variant="info">预览已降采样至 240 点以减轻 stdio 负载</Callout>
+            </div>
+          ) : null}
           <Tabs
             variant="pills"
             items={[
@@ -259,8 +312,22 @@ export function TimeRangeStep(): React.JSX.Element {
             ]}
           />
           {previewQuery.error ? (
-            <div style={{ marginTop: 10, color: 'var(--c-danger)', fontSize: 12 }}>
-              预览失败：{previewQuery.error.message}
+            <div style={{ marginTop: 10 }}>
+              <Callout variant="danger">
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12
+                  }}
+                >
+                  <span>预览失败：{previewErrorMessage(previewQuery.error)}</span>
+                  <Button size="sm" variant="bordered" onClick={() => void previewQuery.refetch()}>
+                    重试
+                  </Button>
+                </div>
+              </Callout>
             </div>
           ) : null}
         </CardBody>

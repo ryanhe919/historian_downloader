@@ -5,6 +5,7 @@
 import type { MouseEvent } from 'react'
 import { Card, CardBody, Icon, Tag, Tooltip } from '@/components/ui'
 import type { Server } from '@shared/domain-types'
+import { useConnectionStore, type RuntimeStatus } from '@/stores/connection'
 
 export interface ServerCardProps {
   server: Server
@@ -15,18 +16,35 @@ export interface ServerCardProps {
 
 interface StatusVisual {
   label: string
-  color: 'success' | 'neutral' | 'danger'
+  // Tag color keys supported by the TimeUI palette we use here.
+  color: 'success' | 'neutral' | 'danger' | 'primary'
 }
 
+/**
+ * Fallback mapping from the persisted `server.status` to a soft badge.
+ * Intentionally collapses `offline` + `ready` into a neutral "未连接" — the
+ * sidecar can't tell whether a fresh row has ever been tested, so showing a
+ * red "离线" badge on a just-saved server was alarming noise.
+ */
 function statusVisual(s: Server['status']): StatusVisual {
   switch (s) {
     case 'connected':
       return { label: '已连接', color: 'success' }
-    case 'offline':
-      return { label: '离线', color: 'danger' }
     case 'ready':
+    case 'offline':
     default:
       return { label: '未连接', color: 'neutral' }
+  }
+}
+
+function runtimeVisual(r: RuntimeStatus): StatusVisual {
+  switch (r) {
+    case 'testing':
+      return { label: '测试中…', color: 'primary' }
+    case 'connected':
+      return { label: '已连接', color: 'success' }
+    case 'failed':
+      return { label: '连接失败', color: 'danger' }
   }
 }
 
@@ -52,7 +70,9 @@ export function ServerCard({
   onQuickTest
 }: ServerCardProps): React.JSX.Element {
   const isIFix = server.type === 'iFix'
-  const status = statusVisual(server.status)
+  const runtime = useConnectionStore((s) => s.runtimeStatus.get(server.id))
+  // Runtime overlay (session-scoped) beats the persisted `server.status`.
+  const status: StatusVisual = runtime ? runtimeVisual(runtime) : statusVisual(server.status)
 
   return (
     <Card

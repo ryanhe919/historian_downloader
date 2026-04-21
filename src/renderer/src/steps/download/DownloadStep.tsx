@@ -28,6 +28,7 @@ import { useDownloadStore } from '@/stores/download'
 import { useTagsStore } from '@/stores/tags'
 import { useTimeRangeStore } from '@/stores/timerange'
 import type { ExportFormat, ExportTask, TimeRange } from '@shared/domain-types'
+import { exportErrorMessage } from './errors'
 import { HistoryTable } from './HistoryTable'
 import { QueueRow } from './QueueRow'
 
@@ -130,12 +131,35 @@ export function DownloadStep(): React.JSX.Element {
   const resumeMut = useRpcMutation('historian.export.resume')
   const cancelMut = useRpcMutation('historian.export.cancel')
 
+  // Bootstrap a sensible default output directory on first mount. The store
+  // starts empty (literal ``~`` was previously leaking into the filesystem
+  // as a directory named ``~``, see Wave 4 bug fix). We ask the main process
+  // for Electron's ``downloads`` path joined with ``Historian`` — it is not
+  // created here, only resolved; the sidecar will mkdir it at enqueue time.
+  useEffect(() => {
+    if (outputDir) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const dir = await window.hd.paths.defaultExportDir()
+        if (!cancelled && dir) setOutputDir(dir)
+      } catch (e) {
+        // Non-fatal — the user can still click "选择…" to pick a folder.
+        console.warn('[download] defaultExportDir failed:', (e as Error).message)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [outputDir, setOutputDir])
+
   const pickFolder = useCallback(async () => {
     try {
       const picked = await window.hd.dialog.pickFolder({
         title: '选择导出目录',
-        defaultPath: outputDir
+        defaultPath: outputDir || undefined
       })
+      // ``picked === null`` means the user hit Cancel; keep the prior value.
       if (picked) setOutputDir(picked)
     } catch (e) {
       toast.error((e as Error).message, { title: '选择目录失败' })
@@ -147,31 +171,35 @@ export function DownloadStep(): React.JSX.Element {
     return presetToRange(activePreset)
   }, [activePreset, customRange])
 
+  const selectedTagIdsArr = useMemo(() => Array.from(selectedTagIds), [selectedTagIds])
+  const effectiveRange = useMemo(() => resolveRange(), [resolveRange])
+  const prereqOk = Boolean(serverId) && selectedTagIdsArr.length > 0 && !!effectiveRange
+
   const startDownload = useCallback(async () => {
+    // These guards mirror the inline Callouts — but are the source of truth
+    // because the footer button wires directly to this handler.
     if (!serverId) {
-      toast.warning('请先选择 Historian 服务器', { title: '无法开始' })
+      toast.error('请先在 Step 0 选择服务器', { title: '无法开始' })
       return
     }
-    const ids = Array.from(selectedTagIds)
-    if (ids.length === 0) {
-      toast.warning('请先选择至少一个标签', { title: '无法开始' })
+    if (selectedTagIdsArr.length === 0) {
+      toast.error('请先在 Step 1 选择标签', { title: '无法开始' })
       return
     }
-    const range = resolveRange()
-    if (!range) {
-      toast.warning('请先设置时间范围', { title: '无法开始' })
+    if (!effectiveRange) {
+      toast.error('请先在 Step 2 设置时间范围', { title: '无法开始' })
       return
     }
     if (!outputDir) {
-      toast.warning('请先选择输出目录', { title: '无法开始' })
+      toast.error('请先选择输出目录', { title: '无法开始' })
       return
     }
 
     try {
       const res = await startMut.mutate({
         serverId,
-        tagIds: ids,
-        range,
+        tagIds: selectedTagIdsArr,
+        range: effectiveRange,
         sampling,
         segmentDays,
         format,
@@ -186,12 +214,12 @@ export function DownloadStep(): React.JSX.Element {
       upsertTask(res.task)
       toast.success(`已加入队列：${res.task.name}`, { title: '任务已创建' })
     } catch (e) {
-      toast.error((e as Error).message, { title: '启动失败' })
+      toast.error(exportErrorMessage(e), { title: '启动失败' })
     }
   }, [
     serverId,
-    selectedTagIds,
-    resolveRange,
+    selectedTagIdsArr,
+    effectiveRange,
     outputDir,
     startMut,
     sampling,
@@ -224,7 +252,7 @@ export function DownloadStep(): React.JSX.Element {
         const r = await pauseMut.mutate({ taskId: id })
         upsertTask(r.task)
       } catch (e) {
-        toast.error((e as Error).message, { title: '暂停失败' })
+        toast.error(exportErrorMessage(e), { title: '暂停失败' })
       }
     },
     [pauseMut, upsertTask, toast]
@@ -235,7 +263,7 @@ export function DownloadStep(): React.JSX.Element {
         const r = await resumeMut.mutate({ taskId: id })
         upsertTask(r.task)
       } catch (e) {
-        toast.error((e as Error).message, { title: '继续失败' })
+        toast.error(exportErrorMessage(e), { title: '继续失败' })
       }
     },
     [resumeMut, upsertTask, toast]
@@ -246,15 +274,20 @@ export function DownloadStep(): React.JSX.Element {
         const r = await cancelMut.mutate({ taskId: id })
         upsertTask(r.task)
       } catch (e) {
-        toast.error((e as Error).message, { title: '取消失败' })
+        toast.error(exportErrorMessage(e), { title: '取消失败' })
       }
     },
     [cancelMut, upsertTask, toast]
   )
   const handleRemove = useCallback((id: string) => removeTask(id), [removeTask])
-  const handleShowInFolder = useCallback((path: string) => {
-    void window.hd.shell.showInFolder(path)
-  }, [])
+  const handleShowInFolder = useCallback(
+    (path: string) => {
+      void window.hd.shell.showInFolder(path).catch((e: unknown) => {
+        toast.error(exportErrorMessage(e), { title: '打开失败' })
+      })
+    },
+    [toast]
+  )
 
   const sortedTasks = useMemo<ExportTask[]>(() => {
     return Object.values(tasks).sort((a, b) => {
@@ -272,8 +305,6 @@ export function DownloadStep(): React.JSX.Element {
   }, [tasks])
 
   const runningCount = sortedTasks.filter((t) => t.status === 'running').length
-  const defaultPlaceholder =
-    window.hd?.platform === 'win32' ? 'D:\\Historian\\Exports' : '~/Historian/Exports'
 
   return (
     <div className="panel-inner">
@@ -281,6 +312,25 @@ export function DownloadStep(): React.JSX.Element {
       <div className="page-sub">
         选择输出格式并启动任务。任务会按分段顺序下载，可随时暂停或取消。
       </div>
+
+      {/* ---- Prerequisite guards ----
+        Mirror the gating in ``startDownload`` — these Callouts tell the
+        user *why* the footer "开始下载" button won't progress, whereas the
+        handler itself surfaces the same message via toast.error if they
+        bypass the visual hint (e.g. keyboard activation). */}
+      {!serverId ? (
+        <div style={{ marginBottom: 14 }}>
+          <Callout variant="danger">请先在 Step 0 选择服务器</Callout>
+        </div>
+      ) : selectedTagIdsArr.length === 0 ? (
+        <div style={{ marginBottom: 14 }}>
+          <Callout variant="warning">请先在 Step 1 选择标签</Callout>
+        </div>
+      ) : !effectiveRange ? (
+        <div style={{ marginBottom: 14 }}>
+          <Callout variant="warning">请先在 Step 2 设置时间范围</Callout>
+        </div>
+      ) : null}
 
       {/* ---- Config card ---- */}
       <Card style={{ marginBottom: 16 }}>
@@ -296,9 +346,10 @@ export function DownloadStep(): React.JSX.Element {
             </FormField>
             <FormField label="输出目录">
               <Input
+                className="mono"
                 value={outputDir}
-                onChange={setOutputDir}
-                placeholder={defaultPlaceholder}
+                isReadOnly
+                placeholder="点击右侧按钮选择导出目录"
                 startContent={<Icon name="folder" size={14} />}
                 endContent={
                   <Button size="sm" variant="light" onClick={() => void pickFolder()}>
@@ -326,16 +377,15 @@ export function DownloadStep(): React.JSX.Element {
               完成后打开文件夹
             </Switch>
             <div style={{ flex: 1 }} />
-            <Button color="primary" onClick={() => void startDownload()} loading={startMut.loading}>
+            <Button
+              color="primary"
+              onClick={() => void startDownload()}
+              loading={startMut.loading}
+              disabled={!prereqOk || !outputDir}
+            >
               <Icon name="download" size={14} /> 开始下载
             </Button>
           </div>
-
-          {!serverId || selectedTagIds.size === 0 ? (
-            <Callout variant="info" title="请先完成前置步骤" style={{ marginTop: 12 }}>
-              选择服务器（Step 0）和至少一个标签（Step 1）后即可开始下载。
-            </Callout>
-          ) : null}
         </CardBody>
       </Card>
 

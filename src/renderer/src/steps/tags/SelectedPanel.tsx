@@ -4,7 +4,7 @@
  * (table of picked tags or empty state), and a tip callout at the bottom.
  */
 import { useMemo, useState } from 'react'
-import { Icon, Tag, useToast } from '@/components/ui'
+import { Callout, Icon, Tag, useToast } from '@/components/ui'
 import { useRpcQuery } from '@/hooks/useRpc'
 import { useConnectionStore } from '@/stores/connection'
 import { useTagsStore } from '@/stores/tags'
@@ -36,26 +36,35 @@ export function SelectedPanel(): React.JSX.Element {
     [selectedIds, selectedDetails]
   )
 
-  const estimatedMb = (selectedTags.length * 0.7).toFixed(1)
+  // Accurate "estimated MB per slice" needs tagCount × time-range × sampling;
+  // the previous placeholder (`length * 0.7 MB/tag`) was off by orders of
+  // magnitude. Real estimator lands in Wave 4 with the download step.
+
+  // `serverId` may point at a row the sidecar no longer returns (e.g. user
+  // opened this step after deleting the server on another machine); in that
+  // case skip the success blurb and render a warning instead of the left
+  // pane's "请先选择" (which would be a duplicate + wrong diagnosis here).
+  const serverMissing = !!serverId && !currentServer
 
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 20 }}>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h1 className="page-title">选择要下载的标签</h1>
-          <div className="page-sub" style={{ margin: 0 }}>
-            {currentServer ? (
-              <>
-                已从{' '}
-                <strong style={{ color: 'var(--fg1)' }}>
-                  {currentServer.type} — {currentServer.name}
-                </strong>{' '}
-                加载 {(currentServer.tagCount ?? 0).toLocaleString()} 个标签。可在左侧按组导航或直接搜索。
-              </>
-            ) : (
-              '请在上一步选择一个 Historian 服务器。'
-            )}
-          </div>
+          {currentServer && (
+            <div className="page-sub" style={{ margin: 0 }}>
+              已从{' '}
+              <strong style={{ color: 'var(--fg1)' }}>
+                {currentServer.type} — {currentServer.name}
+              </strong>{' '}
+              加载 {(currentServer.tagCount ?? 0).toLocaleString()} 个标签。可在左侧按组导航或直接搜索。
+            </div>
+          )}
+          {serverMissing && (
+            <div style={{ marginTop: 10 }}>
+              <Callout variant="warning">该服务器已被删除或不再可用</Callout>
+            </div>
+          )}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button
@@ -84,10 +93,7 @@ export function SelectedPanel(): React.JSX.Element {
         <div className="card-head">
           <div>
             <h3>已选标签</h3>
-            <div className="sub">
-              共 {selectedTags.length} 个标签
-              {selectedTags.length > 0 && <> · 估算每段 ~{estimatedMb} MB</>}
-            </div>
+            <div className="sub">共 {selectedTags.length} 个标签</div>
           </div>
           <div className="tabs">
             <button
