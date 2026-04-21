@@ -8,8 +8,10 @@ import { registerRpcBridge } from './ipc/rpc-bridge'
 import { registerDialogHandlers } from './ipc/dialog'
 import { registerPathsHandlers } from './ipc/paths'
 import { registerShellHandlers } from './ipc/shell'
+import { initAutoUpdate } from './auto-update'
 
 initLogger()
+initAutoUpdate()
 
 const supervisor = new SidecarSupervisor()
 const rpcClient = new RpcClient()

@@ -61,9 +61,14 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-# TODO(publish): replace with real release endpoint once auto-update is wired.
+# Auto-update provider. `electron-updater` at runtime reads the bundled
+# `app-update.yml` (generated from this config) and fetches `latest.yml` +
+# the NSIS installer from the GitHub release matching the next version.
+# No token is needed to READ public releases; the release.yml workflow
+# uploads assets via `softprops/action-gh-release`.
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: ryanhe919
+  repo: historian_downloader
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
