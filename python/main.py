@@ -45,7 +45,14 @@ from util.time import iso_now, parse_iso, sampling_seconds, validate_range
 log = logging.getLogger("hd.sidecar")
 
 
-VERSION = "0.1.0"
+# Version is injected at sidecar build/dev time from package.json via
+# scripts/write-python-version.mjs → python/_generated_version.py. If the
+# file is absent (fresh checkout, someone ran main.py directly without the
+# npm script), fall back to an obviously-placeholder tag.
+try:
+    from _generated_version import VERSION  # type: ignore[import-not-found]
+except ImportError:
+    VERSION = "0.0.0+dev"
 
 
 # ---------------------------------------------------------------------------

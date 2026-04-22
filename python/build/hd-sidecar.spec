@@ -77,6 +77,10 @@ if not IS_WIN:
 hiddenimports: list[str] = [
     "asyncio",
     "sqlite3",
+    # main.py imports this via a try/except ImportError block, which some
+    # older PyInstaller versions skip. The file itself is generated at
+    # build time by scripts/write-python-version.mjs.
+    "_generated_version",
 ]
 
 # cryptography (used by ``util/crypto.py`` for AES-GCM).  The Rust bindings

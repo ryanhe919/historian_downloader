@@ -15,4 +15,8 @@ python/**/__pycache__/
 python/**/*.pyc
 python/.pytest_cache/
 resources/hd-sidecar/
+
+# Generated at build time from package.json version; see
+# scripts/write-python-version.mjs.
+python/_generated_version.py
 ~/
