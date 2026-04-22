@@ -185,7 +185,7 @@ export function SelectedPanel(): React.JSX.Element {
                   </td>
                   <td>
                     <span className="mono" style={{ color: 'var(--fg1)', fontSize: 12 }}>
-                      {t.label}
+                      {t.path ?? t.label}
                     </span>
                   </td>
                   <td>{t.desc ?? '—'}</td>

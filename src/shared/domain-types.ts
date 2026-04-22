@@ -63,6 +63,13 @@ export interface TagNode {
   unit?: string
   type?: TagValueType
   dataType?: string
+  /**
+   * Dot-joined path from tree root to this node (folder labels + own label),
+   * e.g. "生产线A.水泵.FIC-1001". Populated by the renderer when walking the
+   * tag tree; omitted for manually-added tags (paste flow) that have no
+   * tree position. Display only — the tag id is still the wire identifier.
+   */
+  path?: string
 }
 
 export interface TagMeta extends TagNode {

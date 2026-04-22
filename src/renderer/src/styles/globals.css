@@ -795,29 +795,6 @@ table.t tr:last-child td {
   flex: 1;
   min-width: 0;
 }
-.sidebar-action {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  color: var(--fg2);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all var(--dur-fast);
-}
-.sidebar-action:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
-  background: var(--tint-primary-weak);
-}
-.sidebar-action:focus-visible {
-  outline: 2px solid var(--c-primary);
-  outline-offset: 2px;
-}
 .tag-sidebar .filter-row {
   padding: 0 14px 10px;
   display: flex;
