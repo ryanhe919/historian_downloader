@@ -1,17 +1,17 @@
 /**
- * Frameless Electron titlebar.
+ * Application menu bar — sits below the OS-native titlebar on Windows/Linux,
+ * and below (inset into) the macOS hidden titlebar on darwin.
  *
- * - Left: macOS-style traffic lights. Because we don't yet ship a custom
- *   IPC bridge for window controls, they fall back to best-effort BOM
- *   calls (window.close / minimize via postMessage). Today they behave
- *   mostly as decoration on most platforms, but the markup hooks (`.traffic-dot`
- *   classes + `-webkit-app-region: no-drag`) are in place so the main
- *   process can wire them up later without touching the renderer.
+ * - Left: 72px gutter on macOS to clear the native traffic-light cluster
+ *   (titleBarStyle: 'hiddenInset'). Windows/Linux have a proper native
+ *   titlebar above this row so no gutter is needed.
  * - Center: brand (logo + wordmark) and placeholder app menu.
  * - Right: theme toggle and Tweaks drawer trigger.
  *
- * Drag region is inherited from the `.titlebar` CSS rule (`-webkit-app-region:
- * drag`); interactive children set `no-drag` locally.
+ * Previously this row also drew macOS-style traffic-dot buttons on
+ * Windows — but they were never wired to any IPC, so Windows users
+ * couldn't minimize/maximize/close the window. The app now uses the
+ * OS-native frame on Windows, so those fake dots were removed.
  */
 import { Menu, MenuItem, useToast } from '@/components/ui'
 import { Icon } from '@/components/ui'
@@ -19,31 +19,11 @@ import { useTheme } from '@/hooks/useTheme'
 import { useAppStore } from '@/stores/app'
 import logoUrl from '@/assets/logo.png'
 
-function handleTrafficAction(action: 'close' | 'min' | 'max'): void {
-  if (typeof window === 'undefined') return
-  try {
-    if (action === 'close') {
-      window.close()
-    } else if (action === 'min') {
-      // No BOM equivalent — rely on main process wiring later.
-      // Keep the click handler so the button still feels interactive.
-    } else {
-      // `max` — likewise deferred to main process wiring.
-    }
-  } catch {
-    /* ignore — decoration fallback */
-  }
-}
-
 export function TitleBar(): React.JSX.Element {
   const { theme, toggleTheme } = useTheme()
   const setTweaksOpen = useAppStore((s) => s.setTweaksOpen)
   const toast = useToast()
 
-  // On macOS we use Electron's `titleBarStyle: 'hiddenInset'` which keeps
-  // the native traffic lights visible. Rendering our own dots would
-  // produce a second set — so skip them on darwin and reserve padding
-  // for the native cluster instead.
   const isMac = typeof window !== 'undefined' && window.hd?.platform === 'darwin'
 
   const showPending = (label: string): void => {
@@ -64,31 +44,10 @@ export function TitleBar(): React.JSX.Element {
 
   return (
     <div className="titlebar">
-      {isMac ? (
-        // Native traffic lights from Electron sit here; just reserve the
-        // horizontal gap so our content doesn't slide under them.
+      {isMac && (
+        // Reserve space for the native macOS traffic-light cluster
+        // (rendered by Electron via titleBarStyle: 'hiddenInset').
         <div style={{ width: 72, flexShrink: 0 }} aria-hidden />
-      ) : (
-        <div className="traffic" aria-label="Window controls">
-          <button
-            type="button"
-            className="traffic-dot close"
-            aria-label="关闭窗口"
-            onClick={() => handleTrafficAction('close')}
-          />
-          <button
-            type="button"
-            className="traffic-dot min"
-            aria-label="最小化"
-            onClick={() => handleTrafficAction('min')}
-          />
-          <button
-            type="button"
-            className="traffic-dot max"
-            aria-label="最大化"
-            onClick={() => handleTrafficAction('max')}
-          />
-        </div>
       )}
 
       <div className="brand">

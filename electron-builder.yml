@@ -28,10 +28,18 @@ win:
   # in CI env before flipping signAndEditExecutable to true.
   signAndEditExecutable: false
 nsis:
+  # 标准向导式安装：有欢迎/协议/目录选择/进度/完成页，不是静默安装。
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  createStartMenuShortcut: true
 mac:
   target:
     - dmg

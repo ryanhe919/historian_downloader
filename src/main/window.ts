@@ -25,8 +25,11 @@ const DEV_CSP = [
 
 export function createMainWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin'
-  const isWin = process.platform === 'win32'
 
+  // Windows: use the OS-native frame (standard ─/□/× controls). macOS: hide
+  // the title bar but keep the native traffic lights via `hiddenInset`. Linux:
+  // default frame. Without this, Windows users had a frameless window whose
+  // self-drawn traffic dots weren't wired up — no way to close/minimize.
   const win = new BrowserWindow({
     width: 1200,
     height: 820,
@@ -34,7 +37,6 @@ export function createMainWindow(): BrowserWindow {
     minHeight: 680,
     show: false,
     autoHideMenuBar: true,
-    frame: isWin ? false : undefined,
     titleBarStyle: isMac ? 'hiddenInset' : undefined,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
