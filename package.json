@@ -1,6 +1,6 @@
 {
   "name": "historiandownloader",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Historian Downloader — Electron client for Proficy iFix / Wonderware InTouch historians",
   "main": "./out/main/index.js",
   "author": "ryanhe919",
