@@ -474,18 +474,13 @@ async def amain() -> int:
 
 
 def main() -> None:
-    # Windows: the default ProactorEventLoop cannot wrap stdin/stdout via
-    # ``loop.connect_read_pipe(sys.stdin)`` — it raises NotImplementedError
-    # and the transport loop never starts. Force the Selector loop, which
-    # supports pipe readers; the sidecar doesn't spawn subprocesses (the
-    # Electron parent spawns us, not the other way around), so the well-known
-    # "SelectorEventLoop doesn't support subprocess on Windows" caveat
-    # doesn't apply here.
-    if sys.platform == "win32":
-        try:
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore[attr-defined]
-        except AttributeError:  # pragma: no cover — non-Windows import guard
-            pass
+    # Keep the platform-default event loop. On Windows 3.8+ that is
+    # ProactorEventLoop, which actually supports ``connect_read_pipe`` on
+    # the stdin HANDLE a PIPE-spawned subprocess inherits — WindowsSelector
+    # is the one that raises NotImplementedError for pipe streams. Earlier
+    # revisions got this backwards and forced Selector here, which made the
+    # transport loop fail to initialise and broke the packaged Windows
+    # build entirely.
     try:
         raise SystemExit(asyncio.run(amain()))
     except KeyboardInterrupt:

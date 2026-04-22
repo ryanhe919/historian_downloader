@@ -105,11 +105,43 @@ class LineTransport:
 
 
 async def _connect_stdin_reader() -> asyncio.StreamReader:
-    """Wrap ``sys.stdin`` into an ``asyncio.StreamReader``."""
+    """Wrap ``sys.stdin`` into an ``asyncio.StreamReader``.
+
+    Happy path: ``loop.connect_read_pipe`` on the stdin HANDLE works on
+    POSIX as well as Windows/Proactor.
+
+    Fallback: some environments (Windows/Selector if someone forces it,
+    or a stdin attached to a console rather than a real pipe) raise
+    ``NotImplementedError`` or ``ValueError`` here. In that case we pump
+    stdin from a background thread and ``feed_data`` into the same
+    StreamReader, so the rest of the transport stays unchanged.
+    """
     loop = asyncio.get_running_loop()
     reader = asyncio.StreamReader(limit=MAX_LINE_BYTES * 2)
     protocol = asyncio.StreamReaderProtocol(reader)
-    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+    try:
+        await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+        return reader
+    except (NotImplementedError, ValueError, OSError) as e:
+        log.warning(
+            "connect_read_pipe(stdin) unsupported (%s); falling back to thread pump",
+            type(e).__name__,
+        )
+    # Thread fallback — reads raw bytes from sys.stdin.buffer, feeds into
+    # the asyncio-owned StreamReader via the loop's thread-safe scheduler.
+    import threading
+
+    def _pump() -> None:
+        stdin_bytes = sys.stdin.buffer
+        while True:
+            chunk: bytes = stdin_bytes.readline()
+            if not chunk:
+                loop.call_soon_threadsafe(reader.feed_eof)
+                return
+            loop.call_soon_threadsafe(reader.feed_data, chunk)
+
+    t = threading.Thread(target=_pump, name="hd-stdin-pump", daemon=True)
+    t.start()
     return reader
 
 
