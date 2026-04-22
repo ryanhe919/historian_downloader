@@ -3,10 +3,23 @@
  *
  * Frontend A is expected to mount this in App.tsx for `step === 0`.
  */
-import { useCallback, useMemo, useState } from 'react'
-import { Button, Empty, Grid, Icon, Input, Skeleton, useToast } from '@/components/ui'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Button,
+  Empty,
+  Grid,
+  Icon,
+  Input,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Skeleton,
+  useToast
+} from '@/components/ui'
 import { useRpcMutation, useRpcQuery } from '@/hooks/useRpc'
 import { isRpcError } from '@/lib/rpc'
+import { clearDownstreamFromConnection } from '@/lib/cascade'
 import { useConnectionStore } from '@/stores/connection'
 import { ErrorCode } from '@shared/error-codes'
 import type { Server } from '@shared/domain-types'
@@ -65,19 +78,32 @@ export function ConnectionStep(): React.JSX.Element {
 
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState<ConnectionDraft>(EMPTY_DRAFT)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const formRef = useRef<HTMLDivElement | null>(null)
 
-  // When the selection changes from outside (or the list refreshes), hydrate
-  // the form with the selected server's fields. We compute the derived state
-  // during render rather than in an effect — setting state inside an effect
-  // would trigger a cascading render (react-hooks/set-state-in-effect).
-  if (selectedServerId && editingId !== selectedServerId) {
+  // `editingId` is derived from the zustand-owned `selectedServerId`; the
+  // form shows either the selected server's saved fields (edit mode) or an
+  // empty draft (new mode). Previously a second useState + a render-time
+  // setState hack caused timing issues where "新建连接" appeared to do
+  // nothing (the render-time branch races handleNew's own setState).
+  const editingId = selectedServerId
+
+  // Sync draft whenever the selected server changes: on pick, hydrate the
+  // form; on clear (new), reset to empty. We compare against a ref of the
+  // last-applied id to avoid clobbering user edits while the same server
+  // stays selected.
+  const lastAppliedIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (lastAppliedIdRef.current === selectedServerId) return
+    lastAppliedIdRef.current = selectedServerId
+    if (!selectedServerId) {
+      setDraft({ ...EMPTY_DRAFT })
+      return
+    }
     const found = servers.find((s) => s.id === selectedServerId)
     if (found) {
       setDraft(serverToDraft(found))
-      setEditingId(selectedServerId)
     }
-  }
+  }, [selectedServerId, servers])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -92,19 +118,71 @@ export function ConnectionStep(): React.JSX.Element {
 
   const testMut = useRpcMutation('historian.testConnection')
   const saveMut = useRpcMutation('historian.saveServer')
+  const deleteMut = useRpcMutation('historian.deleteServer')
+
+  // Pending deletion — set by the trash icon / form "删除" button;
+  // a Modal reads this to confirm. `null` = closed.
+  const [pendingDelete, setPendingDelete] = useState<Server | null>(null)
 
   const handleNew = useCallback(() => {
-    setEditingId(null)
+    // Clearing the zustand selection triggers the sync effect above which
+    // resets `draft` to EMPTY_DRAFT. We also scroll + focus the form so
+    // the user has an immediate visible cue that they're now editing a
+    // brand-new connection (when the list is empty both before/after,
+    // without this cue the button looked inert).
     setSelectedServerId(null)
+    // Force-reset in this tick too — the effect runs after paint, and we
+    // want the form to be cleared synchronously for the focus below.
     setDraft({ ...EMPTY_DRAFT })
+    lastAppliedIdRef.current = null
+    requestAnimationFrame(() => {
+      const el = formRef.current
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      const nameInput = el.querySelector<HTMLInputElement>('input[aria-label="连接名称"]')
+      nameInput?.focus()
+    })
   }, [setSelectedServerId])
 
   const handleSelect = useCallback(
     (id: string) => {
+      // Switching to a different server invalidates the previously-picked
+      // tag ids (tag ids are server-scoped); clear the downstream tag
+      // selection so Step 1 starts fresh for the new server.
+      const prev = useConnectionStore.getState().selectedServerId
+      if (prev && prev !== id) {
+        // Only drop tags, not time-range — time presets are generic.
+        clearDownstreamFromConnection()
+      }
       setSelectedServerId(id)
     },
     [setSelectedServerId]
   )
+
+  const handleAskDelete = useCallback((server: Server) => {
+    setPendingDelete(server)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    const target = pendingDelete
+    if (!target) return
+    try {
+      await deleteMut.mutate({ id: target.id })
+      const isSelected = selectedServerId === target.id
+      if (isSelected) {
+        // Remove downstream state only when the _selected_ server goes
+        // away. Deleting an unrelated row in the grid shouldn't blow away
+        // the user's tag/time picks for the currently-selected one.
+        setSelectedServerId(null)
+        clearDownstreamFromConnection()
+      }
+      toast.success(`${target.name} 已删除`, { title: '连接已删除' })
+      setPendingDelete(null)
+      await refetch()
+    } catch (e) {
+      toast.error(errorMessage(e), { title: '删除失败' })
+    }
+  }, [pendingDelete, deleteMut, selectedServerId, setSelectedServerId, refetch, toast])
 
   const handleTest = useCallback(
     async (override?: ConnectionDraft | Server) => {
@@ -166,7 +244,6 @@ export function ConnectionStep(): React.JSX.Element {
       })
       toast.success('已保存', { title: res.server.name })
       await refetch()
-      setEditingId(res.id)
       setSelectedServerId(res.id)
     } catch (e) {
       toast.error(errorMessage(e), { title: '保存失败' })
@@ -234,20 +311,59 @@ export function ConnectionStep(): React.JSX.Element {
               isActive={s.id === selectedServerId}
               onSelect={handleSelect}
               onQuickTest={(srv) => void handleTest(srv)}
+              onDelete={handleAskDelete}
             />
           ))}
         </Grid>
       )}
 
-      <ConnectionForm
-        value={draft}
-        onChange={setDraft}
-        onTest={() => void handleTest()}
-        onSave={() => void handleSave()}
-        testing={testMut.loading}
-        saving={saveMut.loading}
-        selectedId={editingId}
-      />
+      <div ref={formRef}>
+        <ConnectionForm
+          value={draft}
+          onChange={setDraft}
+          onTest={() => void handleTest()}
+          onSave={() => void handleSave()}
+          onDelete={
+            editingId
+              ? () => {
+                  const server = servers.find((s) => s.id === editingId)
+                  if (server) handleAskDelete(server)
+                }
+              : undefined
+          }
+          testing={testMut.loading}
+          saving={saveMut.loading}
+          selectedId={editingId}
+        />
+      </div>
+
+      <Modal
+        isOpen={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null)
+        }}
+        size="sm"
+      >
+        <ModalHeader>删除连接</ModalHeader>
+        <ModalBody>
+          <p style={{ margin: 0 }}>
+            确定要删除 <strong>{pendingDelete?.name}</strong> 吗？
+          </p>
+          {pendingDelete && selectedServerId === pendingDelete.id && (
+            <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--fg3)' }}>
+              该连接正被选中使用，删除后 Step 1 已选标签、Step 2 自定义时间范围将一并清空。
+            </p>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="bordered" onClick={() => setPendingDelete(null)} autoFocus>
+            取消
+          </Button>
+          <Button color="danger" onClick={() => void handleConfirmDelete()} loading={deleteMut.loading}>
+            删除
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

@@ -29,21 +29,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
+      # pnpm 必须在 setup-node 之前 install，这样 setup-node 的 cache: pnpm
+      # 能找到 pnpm 二进制并读 pnpm-lock.yaml 生成缓存 key。
       - name: Setup pnpm 10
         uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - name: Setup Python 3.11
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup Python 3.11 (x64)
         # 3.11 的 pymssql / pywin32 wheel 覆盖最广、PyInstaller 6.x 兼容最稳
+        # 显式 x64 避免 future runner 默认切到别的架构。
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          architecture: 'x64'
           cache: 'pip'
 
       - name: Install Python build deps
@@ -53,6 +58,9 @@ jobs:
 
       - name: Install Node deps
         run: pnpm install --frozen-lockfile
+
+      - name: Clean any stale sidecar artifacts
+        run: pnpm run sidecar:clean
 
       - name: Build sidecar (PyInstaller → hd-sidecar.exe)
         run: pnpm run sidecar:build

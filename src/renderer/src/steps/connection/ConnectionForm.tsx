@@ -21,16 +21,40 @@ import {
 import type { HistorianType } from '@shared/domain-types'
 import type { ConnectionDraft, ConnectionFormProps } from './types'
 
+// Per-type default TCP port. When the user flips the Historian type and
+// hasn't manually edited the port (or has cleared it), we pre-fill this
+// value so new connections don't start with an empty port field.
+const DEFAULT_PORT: Record<HistorianType, number> = {
+  iFix: 14000,
+  InTouch: 1433 // Wonderware Historian data store is SQL Server on 1433
+}
+
 export function ConnectionForm({
   value,
   onChange,
   onTest,
   onSave,
+  onDelete,
   testing,
   saving,
   selectedId
 }: ConnectionFormProps): React.JSX.Element {
   const patch = (partial: Partial<ConnectionDraft>): void => onChange({ ...value, ...partial })
+
+  const handleTypeChange = (next: HistorianType): void => {
+    // Only override the port when the user hasn't typed a custom one, or
+    // when it still matches the old type's default — otherwise keep their
+    // manual value untouched.
+    const defaultForOther = Object.entries(DEFAULT_PORT)
+      .filter(([k]) => k !== next)
+      .map(([, v]) => v)
+    const shouldOverride =
+      value.port == null || defaultForOther.includes(value.port) || value.port === 0
+    patch({
+      type: next,
+      port: shouldOverride ? DEFAULT_PORT[next] : value.port
+    })
+  }
 
   // Track "password touched" so we don't clobber a placeholder when editing
   // (future hook for hasPassword flows; currently simple text input).
@@ -69,7 +93,7 @@ export function ConnectionForm({
             <FormField label="Historian 类型">
               <Select
                 value={value.type}
-                onChange={(v) => patch({ type: v as HistorianType })}
+                onChange={(v) => handleTypeChange(v as HistorianType)}
                 aria-label="Historian 类型"
                 startContent={<Icon name="database" size={14} />}
               >
@@ -92,7 +116,7 @@ export function ConnectionForm({
                 type="number"
                 value={value.port == null ? '' : String(value.port)}
                 onChange={(v) => patch({ port: v === '' ? undefined : Number(v) })}
-                placeholder="14000"
+                placeholder={String(DEFAULT_PORT[value.type] ?? 14000)}
                 aria-label="端口"
               />
             </FormField>
@@ -154,6 +178,11 @@ export function ConnectionForm({
               使用 Windows 集成认证
             </Switch>
             <div style={{ flex: 1 }} />
+            {selectedId && onDelete ? (
+              <Button color="danger" variant="light" onClick={onDelete}>
+                <Icon name="trash" size={14} /> 删除连接
+              </Button>
+            ) : null}
             <Button variant="bordered" onClick={onTest} loading={testing}>
               <Icon name="zap" size={14} /> 测试连接
             </Button>

@@ -22,6 +22,13 @@ interface TagsState {
   deselectWithDetail: (id: string) => void
   recordTagDetail: (node: TagNode) => void
   forgetTagDetail: (id: string) => void
+  /**
+   * Add user-supplied tag names as selected tags (manual maintenance flow).
+   * Each string becomes a leaf TagNode with id=label=trimmed(name); existing
+   * entries are not re-added and their metadata is left untouched. Returns
+   * a summary so the caller can toast "added N, skipped M".
+   */
+  addTagsManually: (names: string[]) => { added: number; skipped: number }
 }
 
 export const useTagsStore = create<TagsState>((set) => ({
@@ -95,5 +102,32 @@ export const useTagsStore = create<TagsState>((set) => ({
       const details = new Map(s.selectedDetails)
       details.delete(id)
       return { selectedDetails: details }
-    })
+    }),
+  addTagsManually: (names) => {
+    let added = 0
+    let skipped = 0
+    const current = useTagsStore.getState()
+    const ids = new Set(current.selectedIds)
+    const details = new Map(current.selectedDetails)
+    for (const raw of names) {
+      const id = raw.trim()
+      if (!id) {
+        skipped += 1
+        continue
+      }
+      if (ids.has(id)) {
+        skipped += 1
+        continue
+      }
+      ids.add(id)
+      if (!details.has(id)) {
+        details.set(id, { id, label: id, kind: 'leaf' })
+      }
+      added += 1
+    }
+    if (added > 0) {
+      set({ selectedIds: ids, selectedDetails: details })
+    }
+    return { added, skipped }
+  }
 }))

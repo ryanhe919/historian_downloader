@@ -14,6 +14,7 @@ import {
   Empty,
   FormField,
   Grid,
+  Icon,
   Skeleton,
   Tabs
 } from '@/components/ui'
@@ -113,6 +114,13 @@ export function TimeRangeStep(): React.JSX.Element {
   const setSampling = useTimeRangeStore((s) => s.setSampling)
   const segmentDays = useTimeRangeStore((s) => s.segmentDays)
   const setSegmentDays = useTimeRangeStore((s) => s.setSegmentDays)
+  const resetTimeRange = useTimeRangeStore((s) => s.reset)
+
+  const isDirty =
+    activePreset !== 'last-y' ||
+    customRange !== null ||
+    sampling !== '1m' ||
+    segmentDays !== 10
 
   const range = useEffectiveRange()
   const tagIds = useMemo(() => Array.from(selectedIds), [selectedIds])
@@ -154,9 +162,24 @@ export function TimeRangeStep(): React.JSX.Element {
 
   return (
     <div className="panel-inner">
-      <h1 className="page-title">时间与采样</h1>
-      <div className="page-sub">
-        选择时间范围、采样方式，并设置分段大小以避免一次性导出过多数据。
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 className="page-title">时间与采样</h1>
+          <div className="page-sub">
+            选择时间范围、采样方式，并设置分段大小以避免一次性导出过多数据。
+          </div>
+        </div>
+        {isDirty && (
+          <Button
+            size="sm"
+            variant="light"
+            startIcon={<Icon name="refresh" size={12} />}
+            onClick={() => resetTimeRange()}
+            aria-label="重置时间与采样"
+          >
+            重置
+          </Button>
+        )}
       </div>
 
       {/* ---- Prerequisite guard ---- */}
@@ -200,40 +223,56 @@ export function TimeRangeStep(): React.JSX.Element {
             <PresetPills value={activePreset} onChange={setPreset} />
 
             {activePreset === 'custom' ? (
-              <div
-                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 18 }}
-              >
-                <FormField label="开始时间">
-                  <DatePicker
-                    value={startDate}
-                    onChange={(d) => {
-                      if (!d) return
-                      setCustomRange({
-                        start: d.toISOString(),
-                        end: customRange?.end ?? new Date().toISOString()
-                      })
-                    }}
-                    isClearable
-                    aria-label="开始时间"
-                  />
-                </FormField>
-                <FormField label="结束时间">
-                  <DatePicker
-                    value={endDate}
-                    onChange={(d) => {
-                      if (!d) return
-                      setCustomRange({
-                        start:
-                          customRange?.start ??
-                          new Date(Date.now() - 30 * 86_400_000).toISOString(),
-                        end: d.toISOString()
-                      })
-                    }}
-                    isClearable
-                    aria-label="结束时间"
-                  />
-                </FormField>
-              </div>
+              <>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 14,
+                    marginTop: 18
+                  }}
+                >
+                  <FormField label="开始时间">
+                    <DatePicker
+                      value={startDate}
+                      onChange={(d) => {
+                        if (!d) return
+                        setCustomRange({
+                          start: d.toISOString(),
+                          end: customRange?.end ?? new Date().toISOString()
+                        })
+                      }}
+                      isClearable
+                      aria-label="开始时间"
+                    />
+                  </FormField>
+                  <FormField label="结束时间">
+                    <DatePicker
+                      value={endDate}
+                      onChange={(d) => {
+                        if (!d) return
+                        setCustomRange({
+                          start:
+                            customRange?.start ??
+                            new Date(Date.now() - 30 * 86_400_000).toISOString(),
+                          end: d.toISOString()
+                        })
+                      }}
+                      isClearable
+                      aria-label="结束时间"
+                    />
+                  </FormField>
+                </div>
+                {customRange &&
+                  new Date(customRange.end).getTime() <=
+                    new Date(customRange.start).getTime() && (
+                    <div style={{ marginTop: 10 }}>
+                      <Callout variant="danger">
+                        结束时间必须晚于开始时间
+                      </Callout>
+                    </div>
+                  )}
+              </>
             ) : null}
 
             <div className="divider" />

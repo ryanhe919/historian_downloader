@@ -5,42 +5,115 @@
  * - Left: 72px gutter on macOS to clear the native traffic-light cluster
  *   (titleBarStyle: 'hiddenInset'). Windows/Linux have a proper native
  *   titlebar above this row so no gutter is needed.
- * - Center: brand (logo + wordmark) and placeholder app menu.
- * - Right: theme toggle and Tweaks drawer trigger.
- *
- * Previously this row also drew macOS-style traffic-dot buttons on
- * Windows — but they were never wired to any IPC, so Windows users
- * couldn't minimize/maximize/close the window. The app now uses the
- * OS-native frame on Windows, so those fake dots were removed.
+ * - Center: brand (logo + wordmark) and a single "帮助" menu wiring up
+ *   "检查更新" and "关于". The old 文件/编辑/视图 placeholder menus were
+ *   removed — they were non-functional and only added visual noise.
+ * - Right: "设置" gear opens the Tweaks drawer (which owns the theme /
+ *   accent / density pickers — the old duplicate theme toggle here was
+ *   removed).
  */
-import { Menu, MenuItem, useToast } from '@/components/ui'
+import { useEffect, useState } from 'react'
+import {
+  Button,
+  Menu,
+  MenuItem,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  useToast
+} from '@/components/ui'
 import { Icon } from '@/components/ui'
-import { useTheme } from '@/hooks/useTheme'
 import { useAppStore } from '@/stores/app'
 import logoUrl from '@/assets/logo.png'
+import type { UpdatePhase } from '@shared/domain-types'
 
 export function TitleBar(): React.JSX.Element {
-  const { theme, toggleTheme } = useTheme()
   const setTweaksOpen = useAppStore((s) => s.setTweaksOpen)
   const toast = useToast()
 
-  const isMac = typeof window !== 'undefined' && window.hd?.platform === 'darwin'
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [updatePhase, setUpdatePhase] = useState<UpdatePhase>('idle')
+  const [latestVersion, setLatestVersion] = useState<string | undefined>(undefined)
+  const [downloadPercent, setDownloadPercent] = useState<number>(0)
+  const [checking, setChecking] = useState(false)
 
-  const showPending = (label: string): void => {
-    toast.show({
-      status: 'info',
-      title: `${label} 功能预留`,
-      description: '将于后续版本接入',
-      duration: 2000
+  const isMac = typeof window !== 'undefined' && window.hd?.platform === 'darwin'
+  const isWindows = typeof window !== 'undefined' && window.hd?.platform === 'win32'
+  const appVersion = typeof window !== 'undefined' ? (window.hd?.appVersion ?? '') : ''
+
+  // Subscribe to updater lifecycle events (available on Windows only; on
+  // mac/linux the API exists but onStatus never fires).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.hd?.update?.onStatus) return undefined
+    const off = window.hd.update.onStatus((payload) => {
+      setUpdatePhase(payload.phase)
+      if (payload.version) setLatestVersion(payload.version)
+      if (payload.phase === 'downloading' && payload.progress) {
+        setDownloadPercent(Math.round(payload.progress.percent))
+      }
+      if (payload.phase === 'downloaded') {
+        toast.show({
+          status: 'success',
+          title: `已下载新版本 ${payload.version ?? ''}`,
+          description: '打开帮助菜单点"立即重启并安装"完成升级',
+          duration: 6000
+        })
+      }
+      if (payload.phase === 'error' && payload.error) {
+        toast.error(payload.error, { title: '自动更新错误' })
+      }
     })
+    return off
+  }, [toast])
+
+  const handleCheckUpdate = async (): Promise<void> => {
+    if (!isWindows) {
+      toast.show({
+        status: 'info',
+        title: '自动更新仅在 Windows 发布版本中可用',
+        duration: 3000
+      })
+      return
+    }
+    if (checking) return
+    setChecking(true)
+    try {
+      const result = await window.hd.update.check()
+      if (result.updateAvailable) {
+        toast.show({
+          status: 'info',
+          title: `发现新版本 ${result.version ?? ''}`,
+          description: '正在后台下载，完成后会通知你',
+          duration: 4000
+        })
+      } else {
+        toast.show({
+          status: 'success',
+          title: '当前已是最新版本',
+          duration: 2500
+        })
+      }
+    } catch (err) {
+      toast.error((err as Error).message, { title: '检查更新失败' })
+    } finally {
+      setChecking(false)
+    }
   }
 
-  const menuItems: { key: string; label: string }[] = [
-    { key: 'file', label: '文件' },
-    { key: 'edit', label: '编辑' },
-    { key: 'view', label: '视图' },
-    { key: 'help', label: '帮助' }
-  ]
+  const handleInstall = async (): Promise<void> => {
+    try {
+      await window.hd.update.install()
+    } catch (err) {
+      toast.error((err as Error).message, { title: '安装失败' })
+    }
+  }
+
+  const helpTrigger = (
+    <button type="button" className="menu-item" role="menuitem" aria-label="帮助菜单" title="帮助">
+      帮助
+    </button>
+  )
 
   return (
     <div className="titlebar">
@@ -56,34 +129,25 @@ export function TitleBar(): React.JSX.Element {
       </div>
 
       <div className="menu" role="menubar">
-        {menuItems.map((m) => (
-          <Menu
-            key={m.key}
-            trigger={
-              <button type="button" className="menu-item" role="menuitem">
-                {m.label}
-              </button>
-            }
-          >
-            <MenuItem itemKey={`${m.key}-placeholder`} onAction={() => showPending(m.label)}>
-              （功能预留）
+        <Menu trigger={helpTrigger}>
+          <MenuItem itemKey="check-update" onAction={() => void handleCheckUpdate()}>
+            {checking ? '检查中…' : '检查更新'}
+            {updatePhase === 'downloading' ? `（已下载 ${downloadPercent}%）` : ''}
+          </MenuItem>
+          {updatePhase === 'downloaded' && (
+            <MenuItem itemKey="install-update" onAction={() => void handleInstall()}>
+              立即重启并安装 {latestVersion ? `v${latestVersion}` : ''}
             </MenuItem>
-          </Menu>
-        ))}
+          )}
+          <MenuItem itemKey="about" onAction={() => setAboutOpen(true)}>
+            关于 Historian Downloader
+          </MenuItem>
+        </Menu>
       </div>
 
       <div className="spacer" />
 
       <div className="tb-actions">
-        <button
-          type="button"
-          className="tb-btn"
-          title={theme === 'dark' ? '切换为浅色模式' : '切换为深色模式'}
-          aria-label="切换主题"
-          onClick={() => toggleTheme()}
-        >
-          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={14} />
-        </button>
         <button
           type="button"
           className="tb-btn"
@@ -94,6 +158,37 @@ export function TitleBar(): React.JSX.Element {
           <Icon name="settings" size={14} />
         </button>
       </div>
+
+      <Modal isOpen={aboutOpen} onOpenChange={setAboutOpen} size="sm">
+        <ModalHeader>关于 Historian Downloader</ModalHeader>
+        <ModalBody>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <img src={logoUrl} alt="" width={48} height={48} />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>Historian Downloader</div>
+              <div style={{ fontSize: 12, color: 'var(--fg3)' }}>版本 {appVersion || '—'}</div>
+            </div>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--fg2)' }}>
+            面向 GE Proficy iFix / Wonderware InTouch Historian 的桌面导出工具。
+          </p>
+          {updatePhase === 'available' && latestVersion && (
+            <p style={{ marginTop: 10, fontSize: 12, color: 'var(--c-primary)' }}>
+              发现新版本 v{latestVersion}，正在后台下载…
+            </p>
+          )}
+          {updatePhase === 'downloaded' && latestVersion && (
+            <p style={{ marginTop: 10, fontSize: 12, color: 'var(--c-success)' }}>
+              v{latestVersion} 已下载完成，可在帮助菜单中立即安装。
+            </p>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="bordered" onClick={() => setAboutOpen(false)}>
+            关闭
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

@@ -148,3 +148,35 @@ export interface SidecarStatusEvent {
   state: SidecarState
   error?: string
 }
+
+// ---- Auto-update (Windows only) ----
+
+export type UpdatePhase =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+
+export interface UpdateStatusPayload {
+  phase: UpdatePhase
+  version?: string
+  releaseDate?: string
+  releaseNotes?: string | null
+  progress?: {
+    percent: number
+    bytesPerSecond: number
+    transferred: number
+    total: number
+  }
+  error?: string
+}
+
+export interface UpdateCheckResult {
+  updateAvailable: boolean
+  version?: string
+  releaseDate?: string
+  releaseNotes?: string | null
+}

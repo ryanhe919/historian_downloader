@@ -110,22 +110,38 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
     async def _test_connection(params):
         params = _ensure_dict(params)
         server = _require(params, "server", dict)
-        adapter = create_adapter(server)
-        try:
-            res = await adapter.test_connection()
-        finally:
-            await adapter.close()
-
         server_id = server.get("id")
-        if server_id:
-            await dispatcher.emit(
-                "historian.connection.statusChanged",
-                {
-                    "serverId": server_id,
-                    "status": "connected" if res.get("ok") else "offline",
-                    "latencyMs": res.get("latencyMs"),
-                },
-            )
+        adapter = create_adapter(server)
+
+        async def _emit_status(status: str, *, latency_ms=None, error: str | None = None) -> None:
+            if not server_id:
+                return
+            payload: dict = {"serverId": server_id, "status": status}
+            if latency_ms is not None:
+                payload["latencyMs"] = latency_ms
+            if error is not None:
+                payload["error"] = error
+            await dispatcher.emit("historian.connection.statusChanged", payload)
+
+        try:
+            try:
+                res = await adapter.test_connection()
+            except Exception as exc:
+                # Broadcast the failure so the renderer's live status goes
+                # red immediately, then let the caller see the same error
+                # as an RPC rejection.
+                await _emit_status("offline", error=str(exc))
+                raise
+            finally:
+                await adapter.close()
+        except Exception:
+            raise
+
+        await _emit_status(
+            "connected" if res.get("ok") else "offline",
+            latency_ms=res.get("latencyMs"),
+            error=None if res.get("ok") else res.get("detail"),
+        )
         return res
 
     # ---- historian.saveServer ----
@@ -458,6 +474,18 @@ async def amain() -> int:
 
 
 def main() -> None:
+    # Windows: the default ProactorEventLoop cannot wrap stdin/stdout via
+    # ``loop.connect_read_pipe(sys.stdin)`` — it raises NotImplementedError
+    # and the transport loop never starts. Force the Selector loop, which
+    # supports pipe readers; the sidecar doesn't spawn subprocesses (the
+    # Electron parent spawns us, not the other way around), so the well-known
+    # "SelectorEventLoop doesn't support subprocess on Windows" caveat
+    # doesn't apply here.
+    if sys.platform == "win32":
+        try:
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore[attr-defined]
+        except AttributeError:  # pragma: no cover — non-Windows import guard
+            pass
     try:
         raise SystemExit(asyncio.run(amain()))
     except KeyboardInterrupt:

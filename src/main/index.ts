@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { initLogger, log } from './logger'
 import { createMainWindow } from './window'
@@ -12,6 +12,14 @@ import { initAutoUpdate } from './auto-update'
 
 initLogger()
 initAutoUpdate()
+
+// Expose the real app version (from package.json via Electron) to preload
+// via a single sendSync on boot. `process.versions.electron` in preload is
+// the Electron runtime version, not the product version; About dialog needs
+// the latter.
+ipcMain.on('hd:app:version', (e) => {
+  e.returnValue = app.getVersion()
+})
 
 const supervisor = new SidecarSupervisor()
 const rpcClient = new RpcClient()

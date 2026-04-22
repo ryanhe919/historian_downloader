@@ -12,6 +12,8 @@ export interface ServerCardProps {
   isActive: boolean
   onSelect: (id: string) => void
   onQuickTest: (server: Server) => void
+  /** Request deletion — parent decides whether to confirm and invoke RPC. */
+  onDelete?: (server: Server) => void
 }
 
 interface StatusVisual {
@@ -67,7 +69,8 @@ export function ServerCard({
   server,
   isActive,
   onSelect,
-  onQuickTest
+  onQuickTest,
+  onDelete
 }: ServerCardProps): React.JSX.Element {
   const isIFix = server.type === 'iFix'
   const runtime = useConnectionStore((s) => s.runtimeStatus.get(server.id))
@@ -145,19 +148,36 @@ export function ServerCard({
             </div>
           </div>
 
-          <Tooltip content="测试连接">
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                e.stopPropagation()
-                onQuickTest(server)
-              }}
-              aria-label="测试连接"
-            >
-              <Icon name="zap" size={14} />
-            </button>
-          </Tooltip>
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            <Tooltip content="测试连接">
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                  e.stopPropagation()
+                  onQuickTest(server)
+                }}
+                aria-label="测试连接"
+              >
+                <Icon name="zap" size={14} />
+              </button>
+            </Tooltip>
+            {onDelete && (
+              <Tooltip content="删除连接">
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--danger"
+                  onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                    e.stopPropagation()
+                    onDelete(server)
+                  }}
+                  aria-label={`删除 ${server.name}`}
+                >
+                  <Icon name="trash" size={14} />
+                </button>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </CardBody>
     </Card>

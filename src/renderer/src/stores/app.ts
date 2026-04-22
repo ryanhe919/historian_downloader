@@ -11,22 +11,32 @@ import { create } from 'zustand'
 export type AppStep = 0 | 1 | 2 | 3
 
 /**
- * Frontend C's DownloadStep is expected to register its actual "start
- * export" handler via `setOnStartDownload` inside a `useEffect`, so the
- * FooterBar's "开始下载" button can invoke it without the shell knowing
- * anything about export params.
+ * DownloadStep registers its actual "start export" handler via
+ * `setOnStartDownload` inside a `useEffect` so the FooterBar's "开始下载"
+ * button can invoke it without the shell knowing anything about export
+ * params. DownloadStep also publishes loading/disabled so the footer
+ * button reflects real state instead of eagerly firing and failing via
+ * toast — Step 3 used to have a duplicate button; the single source of
+ * truth now lives in the footer.
  */
 export type StartDownloadHandler = () => void
+
+export interface StartDownloadState {
+  loading: boolean
+  disabled: boolean
+}
 
 interface AppState {
   step: AppStep
   tweaksOpen: boolean
   onStartDownload: StartDownloadHandler
+  startDownloadState: StartDownloadState
   setStep: (n: AppStep) => void
   goNext: () => void
   goPrev: () => void
   setTweaksOpen: (v: boolean) => void
   setOnStartDownload: (fn: StartDownloadHandler) => void
+  setStartDownloadState: (s: StartDownloadState) => void
 }
 
 const clampStep = (n: number): AppStep => {
@@ -36,16 +46,18 @@ const clampStep = (n: number): AppStep => {
 }
 
 const defaultStartDownload: StartDownloadHandler = () => {
-  /* no-op; Frontend C's DownloadStep overrides this on mount */
+  /* no-op; DownloadStep overrides this on mount */
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   step: 0,
   tweaksOpen: false,
   onStartDownload: defaultStartDownload,
+  startDownloadState: { loading: false, disabled: true },
   setStep: (n) => set({ step: clampStep(n) }),
   goNext: () => set({ step: clampStep(get().step + 1) }),
   goPrev: () => set({ step: clampStep(get().step - 1) }),
   setTweaksOpen: (v) => set({ tweaksOpen: v }),
-  setOnStartDownload: (fn) => set({ onStartDownload: fn })
+  setOnStartDownload: (fn) => set({ onStartDownload: fn }),
+  setStartDownloadState: (s) => set({ startDownloadState: s })
 }))

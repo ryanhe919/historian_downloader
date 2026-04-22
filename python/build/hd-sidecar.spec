@@ -59,6 +59,16 @@ WORK_DIR = str(PYTHON_DIR / "build-temp")
 IS_WIN = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
 
+if not IS_WIN:
+    import warnings
+
+    warnings.warn(
+        "hd-sidecar.spec: building on a non-Windows host. The product ships "
+        "Windows-only; this bundle is for local development only and must "
+        "NOT be committed or shipped. Production builds run on windows-latest CI.",
+        stacklevel=1,
+    )
+
 # --------------------------------------------------------------------------- #
 # Hidden imports
 # --------------------------------------------------------------------------- #

@@ -1,16 +1,52 @@
 /**
- * SelectedPanel — right column of Step 1. Shows a title with context from the
- * selected server, the "导入标签列表 / 全部清空" toolbar, the "已选标签" card
- * (table of picked tags or empty state), and a tip callout at the bottom.
+ * SelectedPanel — right column of Step 1.
+ *
+ * Title + context from the selected server, a "手动添加 / 全部清空" toolbar,
+ * the "已选标签" table (or empty state) and a tip callout at the bottom.
+ *
+ * "手动添加" lets the user paste tag names that aren't necessarily present
+ * in the server's tag tree (useful for maintenance flows where a tag list
+ * is curated offline). Pasted names are dedup'd against the existing
+ * selection and become leaf TagNodes with id=label — Step 2 / Step 3 treat
+ * them like any other selected tag.
  */
 import { useMemo, useState } from 'react'
-import { Callout, Icon, Tag, useToast } from '@/components/ui'
+import {
+  Button,
+  Callout,
+  Icon,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Tag,
+  useToast
+} from '@/components/ui'
 import { useRpcQuery } from '@/hooks/useRpc'
 import { useConnectionStore } from '@/stores/connection'
 import { useTagsStore } from '@/stores/tags'
 import type { Server } from '@shared/domain-types'
 
-type ViewMode = 'table' | 'trend'
+/**
+ * Parse a free-form textarea value into a deduped list of tag names.
+ * Splits on newline, comma, semicolon, tab, and whitespace runs, trims each
+ * fragment, and drops empty strings. Preserves first-seen order.
+ */
+function parseTagNames(raw: string): string[] {
+  if (!raw) return []
+  const parts = raw
+    .split(/[\n,;\t]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const p of parts) {
+    if (seen.has(p)) continue
+    seen.add(p)
+    out.push(p)
+  }
+  return out
+}
 
 export function SelectedPanel(): React.JSX.Element {
   const toast = useToast()
@@ -18,6 +54,7 @@ export function SelectedPanel(): React.JSX.Element {
   const selectedDetails = useTagsStore((s) => s.selectedDetails)
   const clearSelection = useTagsStore((s) => s.clearSelection)
   const deselectWithDetail = useTagsStore((s) => s.deselectWithDetail)
+  const addTagsManually = useTagsStore((s) => s.addTagsManually)
 
   const serverId = useConnectionStore((s) => s.selectedServerId)
   const { data: servers } = useRpcQuery('historian.listServers', undefined)
@@ -25,8 +62,6 @@ export function SelectedPanel(): React.JSX.Element {
     () => (servers ?? []).find((s) => s.id === serverId),
     [servers, serverId]
   )
-
-  const [view, setView] = useState<ViewMode>('table')
 
   const selectedTags = useMemo(
     () =>
@@ -36,15 +71,42 @@ export function SelectedPanel(): React.JSX.Element {
     [selectedIds, selectedDetails]
   )
 
-  // Accurate "estimated MB per slice" needs tagCount × time-range × sampling;
-  // the previous placeholder (`length * 0.7 MB/tag`) was off by orders of
-  // magnitude. Real estimator lands in Wave 4 with the download step.
-
   // `serverId` may point at a row the sidecar no longer returns (e.g. user
   // opened this step after deleting the server on another machine); in that
   // case skip the success blurb and render a warning instead of the left
   // pane's "请先选择" (which would be a duplicate + wrong diagnosis here).
   const serverMissing = !!serverId && !currentServer
+
+  // Manual-add modal state.
+  const [addOpen, setAddOpen] = useState(false)
+  const [addText, setAddText] = useState('')
+
+  const parsedNames = useMemo(() => parseTagNames(addText), [addText])
+  const newCount = useMemo(() => {
+    let n = 0
+    for (const name of parsedNames) if (!selectedIds.has(name)) n += 1
+    return n
+  }, [parsedNames, selectedIds])
+  const duplicateCount = parsedNames.length - newCount
+
+  const handleAddSubmit = (): void => {
+    if (parsedNames.length === 0) return
+    const { added, skipped } = addTagsManually(parsedNames)
+    if (added > 0) {
+      toast.success(`已添加 ${added} 个标签${skipped > 0 ? `（跳过 ${skipped} 个重复）` : ''}`, {
+        title: '手动添加'
+      })
+    } else {
+      toast.show({
+        status: 'info',
+        title: '无新标签',
+        description: skipped > 0 ? `输入的 ${skipped} 个全部已存在` : undefined,
+        duration: 2500
+      })
+    }
+    setAddText('')
+    setAddOpen(false)
+  }
 
   return (
     <>
@@ -57,7 +119,8 @@ export function SelectedPanel(): React.JSX.Element {
               <strong style={{ color: 'var(--fg1)' }}>
                 {currentServer.type} — {currentServer.name}
               </strong>{' '}
-              加载 {(currentServer.tagCount ?? 0).toLocaleString()} 个标签。可在左侧按组导航或直接搜索。
+              加载 {(currentServer.tagCount ?? 0).toLocaleString()}{' '}
+              个标签。可在左侧按组导航或直接搜索，也可手动添加服务器上未列出的标签。
             </div>
           )}
           {serverMissing && (
@@ -70,13 +133,11 @@ export function SelectedPanel(): React.JSX.Element {
           <button
             type="button"
             className="btn btn-bordered btn-sm"
-            onClick={() =>
-              toast.info?.('从 CSV 导入：TODO，待实现') ??
-              toast.show({ status: 'info', title: '从 CSV 导入：TODO' })
-            }
+            onClick={() => setAddOpen(true)}
+            aria-label="手动添加标签"
           >
-            <Icon name="copy" size={12} />
-            导入标签列表
+            <Icon name="plus" size={12} />
+            手动添加
           </button>
           <button
             type="button"
@@ -95,37 +156,13 @@ export function SelectedPanel(): React.JSX.Element {
             <h3>已选标签</h3>
             <div className="sub">共 {selectedTags.length} 个标签</div>
           </div>
-          <div className="tabs">
-            <button
-              type="button"
-              className={`tab${view === 'table' ? ' active' : ''}`}
-              onClick={() => setView('table')}
-            >
-              <Icon name="table" size={12} /> 表格
-            </button>
-            <button
-              type="button"
-              className={`tab${view === 'trend' ? ' active' : ''}`}
-              onClick={() => setView('trend')}
-            >
-              <Icon name="chart" size={12} /> 趋势
-            </button>
-          </div>
         </div>
         {selectedTags.length === 0 ? (
           <div className="empty">
             <Icon name="tag" size={36} />
             <div>尚未选择标签</div>
             <div style={{ fontSize: 11, marginTop: 4 }}>
-              从左侧列表中勾选，或粘贴标签名批量导入
-            </div>
-          </div>
-        ) : view === 'trend' ? (
-          <div className="empty">
-            <Icon name="chart" size={36} />
-            <div>趋势预览</div>
-            <div style={{ fontSize: 11, marginTop: 4 }}>
-              （待实现 — 下一步 "时间与采样" 会展示真实预览曲线）
+              从左侧列表中勾选，或点击右上角"手动添加"粘贴标签名
             </div>
           </div>
         ) : (
@@ -187,19 +224,103 @@ export function SelectedPanel(): React.JSX.Element {
           alignItems: 'center',
           gap: 12,
           padding: '12px 14px',
-          background: 'rgba(0,111,238,0.04)',
-          border: '1px solid rgba(0,111,238,0.2)',
+          background: 'var(--tint-primary-weak)',
+          border: '1px solid var(--tint-primary-border)',
           borderRadius: 12,
           fontSize: 'var(--fs-sm)',
           color: 'var(--fg2)'
         }}
       >
-        <Icon name="info" size={16} stroke={2} style={{ color: 'var(--c-primary)', flexShrink: 0 }} />
+        <Icon
+          name="info"
+          size={16}
+          stroke={2}
+          style={{ color: 'var(--c-primary)', flexShrink: 0 }}
+        />
         <span>
           可以选择 <strong>任意多个标签</strong>
           ，下一步会按时间范围自动分段导出以避免数据库一次性返回过多数据。
         </span>
       </div>
+
+      <Modal
+        isOpen={addOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAddOpen(false)
+            setAddText('')
+          }
+        }}
+        size="md"
+      >
+        <ModalHeader>手动添加标签</ModalHeader>
+        <ModalBody>
+          <div style={{ fontSize: 12, color: 'var(--fg3)', marginBottom: 8 }}>
+            每行一个标签名，或用逗号 / 分号 / 制表符分隔。重复的会自动跳过。
+          </div>
+          <textarea
+            value={addText}
+            onChange={(e) => setAddText(e.target.value)}
+            placeholder={'FIC-1001.PV\nFIC-1002.PV, FIC-1003.PV\nTC-2001.PV; TC-2002.PV'}
+            rows={8}
+            autoFocus
+            style={{
+              width: '100%',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              padding: '10px 12px',
+              borderRadius: 8,
+              border: '1px solid var(--border-default)',
+              background: 'var(--bg-surface)',
+              color: 'var(--fg1)',
+              resize: 'vertical',
+              outline: 'none',
+              boxSizing: 'border-box'
+            }}
+            aria-label="标签名列表"
+          />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: 10,
+              fontSize: 12,
+              color: 'var(--fg2)'
+            }}
+          >
+            <span>
+              解析到 <strong>{parsedNames.length}</strong> 个标签
+              {duplicateCount > 0 && (
+                <span style={{ color: 'var(--fg3)' }}> · 其中 {duplicateCount} 个已存在</span>
+              )}
+            </span>
+            {newCount > 0 && (
+              <span style={{ color: 'var(--c-success)' }}>
+                将新增 <strong>{newCount}</strong> 个
+              </span>
+            )}
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="bordered"
+            onClick={() => {
+              setAddOpen(false)
+              setAddText('')
+            }}
+          >
+            取消
+          </Button>
+          <Button
+            color="primary"
+            onClick={handleAddSubmit}
+            disabled={newCount === 0}
+          >
+            添加 {newCount > 0 ? newCount : ''}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </>
   )
 }

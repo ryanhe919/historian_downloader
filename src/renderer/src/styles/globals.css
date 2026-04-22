@@ -256,6 +256,24 @@ select {
   box-shadow: 0 0 0 3px rgba(23, 201, 100, 0.18);
   animation: pulse 2s infinite;
 }
+.env-chip[data-state='disconnected'] .live-dot {
+  background: var(--border-strong, #a0a0a0);
+  box-shadow: none;
+  animation: none;
+}
+.env-chip--button {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.env-chip--button:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-raised, var(--bg-sunken));
+}
+.env-chip--button:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
 @keyframes pulse {
   0%,
   100% {
@@ -440,6 +458,10 @@ select {
 .icon-btn:hover {
   background: var(--bg-muted);
   color: var(--fg1);
+}
+.icon-btn--danger:hover {
+  background: var(--tint-danger-weak);
+  color: var(--c-danger);
 }
 .icon-btn svg {
   width: 16px;
@@ -765,10 +787,42 @@ table.t tr:last-child td {
 }
 .tag-sidebar .search-box {
   padding: 14px 14px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tag-sidebar .search-box .field {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-action {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--fg2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+.sidebar-action:hover {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+  background: var(--tint-primary-weak);
+}
+.sidebar-action:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
 }
 .tag-sidebar .filter-row {
   padding: 0 14px 10px;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -920,14 +974,24 @@ table.t tr:last-child td {
   flex-wrap: wrap;
 }
 .preset-pill {
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  min-height: 28px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: 999px;
   font-size: var(--fs-xs);
   color: var(--fg2);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
   transition: all var(--dur-fast);
+}
+.preset-pill svg {
+  flex-shrink: 0;
 }
 .preset-pill:hover {
   border-color: var(--c-primary);

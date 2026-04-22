@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Awaitable, Callable
 
+from adapters.base import BaseHistorianAdapter
 from adapters.factory import create_adapter
 from rpc import errors
 from services import writers
@@ -21,7 +22,7 @@ log = logging.getLogger(__name__)
 
 
 EmitFn = Callable[[str, dict], Awaitable[None]]
-AdapterFactory = Callable[[dict], object]
+AdapterFactory = Callable[[dict], BaseHistorianAdapter]
 
 
 class _TaskControls:
@@ -175,16 +176,30 @@ class ExportQueue:
         include_quality = bool(options.get("includeQuality"))
         utf8_bom = bool(options.get("utf8Bom"))
 
-        # Resolve server + adapter.
-        server = self._server_provider(task["serverId"]) or {"id": task["serverId"], "type": "mock"}
-        adapter = self._adapter_factory(server)
-
+        # Resolve server + adapter. Keep ``adapter`` initialised to None so
+        # the ``finally: await adapter.close()`` below can short-circuit if
+        # the factory raises (network filesystem access, missing DSN, etc.).
+        adapter: BaseHistorianAdapter | None = None
         output_dir = Path(task["outputDir"])
+        loop = asyncio.get_running_loop()
         try:
-            writers.ensure_output_dir(output_dir)
+            # ensure_output_dir touches the filesystem (mkdir, probe write);
+            # network drives can take seconds — run in executor so the
+            # transport loop stays responsive.
+            await loop.run_in_executor(None, writers.ensure_output_dir, output_dir)
         except errors.OutputDirUnwritable as e:
             log.error("output dir not writable: %s", e.message)
             self._storage.update_task(task_id, status="failed", error=e.message)
+            await self._emit("historian.export.statusChanged",
+                             {"task": public_task_view(self._storage.get_task(task_id) or {})})
+            return
+
+        server = self._server_provider(task["serverId"]) or {"id": task["serverId"], "type": "mock"}
+        try:
+            adapter = self._adapter_factory(server)
+        except Exception as e:
+            log.exception("adapter factory failed for task %s", task_id)
+            self._storage.update_task(task_id, status="failed", error=str(e))
             await self._emit("historian.export.statusChanged",
                              {"task": public_task_view(self._storage.get_task(task_id) or {})})
             return
@@ -325,7 +340,11 @@ class ExportQueue:
                              {"task": public_task_view(self._storage.get_task(task_id) or {})})
         finally:
             self._current_task_id = None
-            await adapter.close()
+            if adapter is not None:
+                try:
+                    await adapter.close()
+                except Exception:  # noqa: BLE001 — best effort cleanup
+                    log.exception("adapter close failed for task %s", task_id)
 
     async def _read_segment_rows(
         self,

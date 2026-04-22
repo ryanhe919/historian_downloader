@@ -88,6 +88,7 @@ export function DownloadStep(): React.JSX.Element {
   const replaceTasks = useDownloadStore((s) => s.replaceTasks)
 
   const setOnStartDownload = useAppStore((s) => s.setOnStartDownload)
+  const setStartDownloadState = useAppStore((s) => s.setStartDownloadState)
 
   const [splitByTag, setSplitByTag] = useStickyOption('hd.export.splitByTag', false)
   const [includeQuality, setIncludeQuality] = useStickyOption('hd.export.includeQuality', true)
@@ -246,6 +247,18 @@ export function DownloadStep(): React.JSX.Element {
     }
   }, [startDownload, setOnStartDownload])
 
+  // Mirror loading + readiness into the app store so the FooterBar's
+  // "开始下载" button can reflect them without duplicating the guard logic.
+  useEffect(() => {
+    setStartDownloadState({
+      loading: startMut.loading,
+      disabled: !prereqOk || !outputDir || startMut.loading
+    })
+    return () => {
+      setStartDownloadState({ loading: false, disabled: true })
+    }
+  }, [startMut.loading, prereqOk, outputDir, setStartDownloadState])
+
   const handlePause = useCallback(
     async (id: string) => {
       try {
@@ -345,19 +358,47 @@ export function DownloadStep(): React.JSX.Element {
               />
             </FormField>
             <FormField label="输出目录">
-              <Input
-                className="mono"
-                value={outputDir}
-                isReadOnly
-                placeholder="点击右侧按钮选择导出目录"
-                startContent={<Icon name="folder" size={14} />}
-                endContent={
-                  <Button size="sm" variant="light" onClick={() => void pickFolder()}>
-                    选择…
-                  </Button>
-                }
-                aria-label="输出目录"
-              />
+              {/* readOnly Input + click-anywhere-to-browse: treating the
+                  whole field as a button is the Windows HIG norm for
+                  file/folder pickers. The nested "选择…" Button stays as
+                  a visual affordance and handles keyboard activation. */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => void pickFolder()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    void pickFolder()
+                  }
+                }}
+                style={{ cursor: 'pointer' }}
+                aria-label="选择输出目录"
+              >
+                <Input
+                  className="mono"
+                  value={outputDir}
+                  isReadOnly
+                  placeholder="点击此处选择导出目录"
+                  startContent={<Icon name="folder" size={14} />}
+                  endContent={
+                    <Button
+                      size="sm"
+                      variant="light"
+                      onClick={(e) => {
+                        // Stop the click from bubbling to the wrapper — otherwise
+                        // pickFolder fires twice (once via the Button, once via
+                        // the wrapper onClick).
+                        e.stopPropagation()
+                        void pickFolder()
+                      }}
+                    >
+                      选择…
+                    </Button>
+                  }
+                  aria-label="输出目录"
+                />
+              </div>
             </FormField>
           </div>
 
@@ -376,15 +417,6 @@ export function DownloadStep(): React.JSX.Element {
             <Switch size="sm" isSelected={openFolderWhenDone} onChange={setOpenFolderWhenDone}>
               完成后打开文件夹
             </Switch>
-            <div style={{ flex: 1 }} />
-            <Button
-              color="primary"
-              onClick={() => void startDownload()}
-              loading={startMut.loading}
-              disabled={!prereqOk || !outputDir}
-            >
-              <Icon name="download" size={14} /> 开始下载
-            </Button>
           </div>
         </CardBody>
       </Card>

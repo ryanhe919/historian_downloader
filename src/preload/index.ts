@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { RpcCallOptions, RpcEventMap, RpcMethodMap, RpcMethodName } from '@shared/rpc-types'
+import type { UpdateCheckResult, UpdateStatusPayload } from '@shared/domain-types'
 
 const Channel = {
   Call: 'hd:rpc:call',
@@ -8,7 +9,10 @@ const Channel = {
   PickFolder: 'hd:dialog:pickFolder',
   OpenPath: 'hd:shell:openPath',
   ShowInFolder: 'hd:shell:showInFolder',
-  DefaultExportDir: 'hd:paths:defaultExportDir'
+  DefaultExportDir: 'hd:paths:defaultExportDir',
+  UpdateCheck: 'hd:update:check',
+  UpdateInstall: 'hd:update:install',
+  UpdateStatus: 'hd:update:status'
 } as const
 
 type Listener<E extends keyof RpcEventMap> = (payload: RpcEventMap[E]) => void
@@ -95,8 +99,31 @@ const api = {
       return ipcRenderer.invoke(Channel.DefaultExportDir) as Promise<string>
     }
   },
+  update: {
+    check(): Promise<UpdateCheckResult> {
+      return ipcRenderer.invoke(Channel.UpdateCheck) as Promise<UpdateCheckResult>
+    },
+    install(): Promise<void> {
+      return ipcRenderer.invoke(Channel.UpdateInstall) as Promise<void>
+    },
+    onStatus(cb: (payload: UpdateStatusPayload) => void): () => void {
+      const handler = (_e: IpcRendererEvent, payload: unknown): void => {
+        cb(payload as UpdateStatusPayload)
+      }
+      ipcRenderer.on(Channel.UpdateStatus, handler)
+      return () => {
+        ipcRenderer.off(Channel.UpdateStatus, handler)
+      }
+    }
+  },
   platform: process.platform as 'darwin' | 'win32' | 'linux',
-  appVersion: process.versions.electron ?? '',
+  appVersion: (() => {
+    try {
+      return (ipcRenderer.sendSync('hd:app:version') as string) ?? ''
+    } catch {
+      return ''
+    }
+  })(),
   env
 }
 

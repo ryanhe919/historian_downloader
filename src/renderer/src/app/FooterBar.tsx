@@ -20,6 +20,7 @@ export function FooterBar(): React.JSX.Element {
   const goPrev = useAppStore((s) => s.goPrev)
   const goNext = useAppStore((s) => s.goNext)
   const onStartDownload = useAppStore((s) => s.onStartDownload)
+  const startDownloadState = useAppStore((s) => s.startDownloadState)
 
   const selectedCount = useTagsStore((s) => s.selectedIds.size)
   const activePreset = useTimeRangeStore((s) => s.activePreset)
@@ -72,6 +73,8 @@ export function FooterBar(): React.JSX.Element {
             color="primary"
             startIcon={<Icon name="download" size={14} />}
             onClick={() => onStartDownload()}
+            loading={startDownloadState.loading}
+            disabled={startDownloadState.disabled}
           >
             开始下载
           </Button>
