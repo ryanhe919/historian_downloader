@@ -59,65 +59,41 @@ jobs:
           enable-cache: true
           cache-dependency-glob: python/requirements-build.txt
 
+      - name: Environment info
+        # 版本漂移排障锚点——每次失败都可以从这里查到 runner 上的实际版本。
+        shell: pwsh
+        run: |
+          Write-Host "node   $(node --version)"
+          Write-Host "pnpm   $(pnpm --version)"
+          Write-Host "python $(python --version)"
+          Write-Host "uv     $(uv --version)"
+          Write-Host "OS     $(Get-CimInstance Win32_OperatingSystem | Select-Object -ExpandProperty Caption) $([System.Environment]::OSVersion.Version)"
+          Write-Host "arch   $env:PROCESSOR_ARCHITECTURE"
+
       - name: Install Python build deps (via uv)
         run: uv pip install --system -r python/requirements-build.txt
 
       - name: Install Node deps
         run: pnpm install --frozen-lockfile
 
-      - name: Clean any stale sidecar artifacts
+      # 下面这一串刻意复刻 `pnpm run build:win` 的步骤顺序，但拆成独立
+      # action steps 以获得更好的日志可读性和按步失败定位。新手维护者
+      # 要加/改步骤时，package.json 里的 `build:win` 和这里必须同步。
+      # 两头都调用同一批 `pnpm run sidecar:*` 脚本确保逻辑只写一次。
+
+      - name: Clean stale sidecar artifacts
         run: pnpm run sidecar:clean
 
       - name: Build sidecar (PyInstaller → hd-sidecar.exe)
         run: pnpm run sidecar:build
 
-      - name: Verify sidecar exe was produced
-        # 打包完后显式检查 resources/hd-sidecar/hd-sidecar.exe 真的存在 +
-        # 启动能输出 system.ready。之前 v0.1.0 编译是过的、但 exe 启动
-        # 就崩 (asyncio loop policy bug)，CI 静悄悄把坏 exe 塞进了安装
-        # 包。加这步 smoke test 就能在发布前拦下这种 bug。
-        shell: pwsh
-        run: |
-          $exe = "resources/hd-sidecar/hd-sidecar.exe"
-          if (-not (Test-Path $exe)) {
-            Write-Error "sidecar exe missing: $exe"
-            exit 1
-          }
-          Write-Host "sidecar exe present: $((Get-Item $exe).Length) bytes"
-          # 启动 exe，从 stdout 读 system.ready 事件。超时 15s。
-          $psi = New-Object System.Diagnostics.ProcessStartInfo
-          $psi.FileName = (Resolve-Path $exe).Path
-          $psi.RedirectStandardInput = $true
-          $psi.RedirectStandardOutput = $true
-          $psi.RedirectStandardError = $true
-          $psi.UseShellExecute = $false
-          $p = [System.Diagnostics.Process]::Start($psi)
-          $deadline = (Get-Date).AddSeconds(15)
-          $ready = $false
-          while ((Get-Date) -lt $deadline) {
-            if ($p.StandardOutput.Peek() -ge 0) {
-              $line = $p.StandardOutput.ReadLine()
-              Write-Host "[sidecar-stdout] $line"
-              if ($line -match '"method"\s*:\s*"system.ready"') {
-                $ready = $true
-                break
-              }
-            } else {
-              Start-Sleep -Milliseconds 200
-            }
-          }
-          if (-not $p.HasExited) {
-            $p.StandardInput.Close()
-            Start-Sleep -Seconds 1
-            if (-not $p.HasExited) { $p.Kill() }
-          }
-          $stderr = $p.StandardError.ReadToEnd()
-          if ($stderr) { Write-Host "[sidecar-stderr]`n$stderr" }
-          if (-not $ready) {
-            Write-Error "sidecar did not emit system.ready within 15s"
-            exit 1
-          }
-          Write-Host "sidecar smoke test passed"
+      - name: Sidecar smoke test (stdout + stdin round-trip)
+        # 启动 exe → 等 system.ready → 发 system.ping → 等响应。
+        # 双向验证很关键：v0.1.0 ship 了一个只能写不能读的 sidecar，
+        # 老 smoke test 只盯 stdout 结果 CI 一路绿灯，到用户手里全报
+        # "sidecar not connected"。见 scripts/sidecar-smoke-test.mjs
+        # 顶部注释。本地：pnpm run sidecar:smoke，逻辑完全一致。
+        run: pnpm run sidecar:smoke
 
       - name: Typecheck
         run: pnpm run typecheck
@@ -134,6 +110,35 @@ jobs:
           # 我们用下面的 softprops/action-gh-release 显式上传。
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: pnpm exec electron-builder --win --publish never
+
+      - name: Verify installer + packaged sidecar
+        # 三道关：
+        #   1) dist/*-setup.exe 必须存在（electron-builder 偶尔静悄悄跳过）。
+        #   2) dist/win-unpacked 里 hd-sidecar.exe 必须在 resources/hd-sidecar/ 下
+        #      （electron-builder.yml 的 extraResources 拼错过一次，installer
+        #      跑得起来但运行时 resolve-binary.ts 找不到 sidecar）。
+        #   3) 打包进 installer 的那份 sidecar 再跑一次 smoke test，确认
+        #      electron-builder 没把 exe 损坏（罕见但发生过 — ASAR 某些路径
+        #      会错误 rewrite exe 内嵌的 integrity hash）。
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path dist -Filter "*-setup.exe" -ErrorAction SilentlyContinue
+          if (-not $setup) {
+            Write-Error "no *-setup.exe found in dist/"
+            exit 1
+          }
+          Write-Host "installer: $($setup.FullName) ($($setup.Length) bytes)"
+
+          $packedSidecar = "dist/win-unpacked/resources/hd-sidecar/hd-sidecar.exe"
+          if (-not (Test-Path $packedSidecar)) {
+            Write-Error "sidecar missing from packaged app: $packedSidecar (check electron-builder.yml extraResources)"
+            exit 1
+          }
+          Write-Host "packaged sidecar: $packedSidecar"
+
+          # Round-trip smoke against the extracted-from-installer copy of the
+          # exe — catches any ASAR / unpack regression in the final bundle.
+          node scripts/sidecar-smoke-test.mjs $packedSidecar
 
       - name: List dist contents
         shell: bash

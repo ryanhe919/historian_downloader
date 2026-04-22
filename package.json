@@ -20,8 +20,9 @@
     "sidecar:prebuild": "node scripts/write-python-version.mjs",
     "sidecar:build": "pnpm run sidecar:prebuild && cd python && python -m PyInstaller build/hd-sidecar.spec --noconfirm --distpath ../resources --workpath build-temp --clean",
     "sidecar:clean": "rimraf python/build-temp resources/hd-sidecar python/_generated_version.py",
-    "build:unpack": "pnpm run sidecar:clean && pnpm run sidecar:build && electron-vite build && electron-builder --dir",
-    "build:win": "pnpm run sidecar:clean && pnpm run sidecar:build && pnpm run typecheck && electron-vite build && electron-builder --win"
+    "sidecar:smoke": "node scripts/sidecar-smoke-test.mjs",
+    "build:unpack": "pnpm run sidecar:clean && pnpm run sidecar:build && pnpm run sidecar:smoke && electron-vite build && electron-builder --dir",
+    "build:win": "pnpm run sidecar:clean && pnpm run sidecar:build && pnpm run sidecar:smoke && pnpm run typecheck && electron-vite build && electron-builder --win"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
