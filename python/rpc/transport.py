@@ -107,26 +107,38 @@ class LineTransport:
 async def _connect_stdin_reader() -> asyncio.StreamReader:
     """Wrap ``sys.stdin`` into an ``asyncio.StreamReader``.
 
-    Happy path: ``loop.connect_read_pipe`` on the stdin HANDLE works on
-    POSIX as well as Windows/Proactor.
+    Happy path (POSIX): ``loop.connect_read_pipe`` on the stdin HANDLE.
 
-    Fallback: some environments (Windows/Selector if someone forces it,
-    or a stdin attached to a console rather than a real pipe) raise
-    ``NotImplementedError`` or ``ValueError`` here. In that case we pump
-    stdin from a background thread and ``feed_data`` into the same
-    StreamReader, so the rest of the transport stays unchanged.
+    Windows always uses the thread-pump fallback.  ``connect_read_pipe``
+    nominally supports pipes on ProactorEventLoop, but the inherited
+    anonymous pipe HANDLE that Electron ``spawn`` hands to the sidecar
+    trips a Python 3.11 asyncio bug: ``_register_with_iocp`` raises
+    ``OSError [WinError 6] invalid handle`` inside the ``_loop_reading``
+    callback (NOT during the await), so it slips past any try/except
+    around ``connect_read_pipe`` and cascades into a secondary
+    ``AttributeError: _empty_waiter``.  Net effect: sidecar can write
+    stdout (system.ready fires) but never reads any RPC request, and
+    Electron shows ``sidecar not connected`` on every call.  The thread
+    pump uses a blocking ``sys.stdin.buffer.readline`` which sidesteps
+    IOCP entirely.
+
+    Fallback is also used on POSIX when ``connect_read_pipe`` genuinely
+    isn't supported (stdin attached to a console, forced Selector loop).
     """
     loop = asyncio.get_running_loop()
     reader = asyncio.StreamReader(limit=MAX_LINE_BYTES * 2)
-    protocol = asyncio.StreamReaderProtocol(reader)
-    try:
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-        return reader
-    except (NotImplementedError, ValueError, OSError) as e:
-        log.warning(
-            "connect_read_pipe(stdin) unsupported (%s); falling back to thread pump",
-            type(e).__name__,
-        )
+
+    if sys.platform != "win32":
+        protocol = asyncio.StreamReaderProtocol(reader)
+        try:
+            await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+            return reader
+        except (NotImplementedError, ValueError, OSError) as e:
+            log.warning(
+                "connect_read_pipe(stdin) unsupported (%s); falling back to thread pump",
+                type(e).__name__,
+            )
+
     # Thread fallback — reads raw bytes from sys.stdin.buffer, feeds into
     # the asyncio-owned StreamReader via the loop's thread-safe scheduler.
     import threading
