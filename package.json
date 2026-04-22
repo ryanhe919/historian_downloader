@@ -1,6 +1,6 @@
 {
   "name": "historiandownloader",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",
@@ -16,7 +16,7 @@
     "build": "pnpm run sidecar:build && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "sidecar:install": "python3 -m pip install -r python/requirements-build.txt",
-    "sidecar:build": "cd python && python3 -m PyInstaller build/hd-sidecar.spec --noconfirm --distpath ../resources/hd-sidecar --workpath build-temp --clean",
+    "sidecar:build": "cd python && python3 -m PyInstaller build/hd-sidecar.spec --noconfirm --distpath ../resources --workpath build-temp --clean",
     "sidecar:clean": "rimraf python/build-temp resources/hd-sidecar",
     "build:unpack": "pnpm run sidecar:build && electron-vite build && electron-builder --dir",
     "build:win": "pnpm run sidecar:build && pnpm run typecheck && electron-vite build && electron-builder --win",

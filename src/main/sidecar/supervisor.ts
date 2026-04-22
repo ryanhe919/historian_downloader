@@ -1,6 +1,9 @@
 import { EventEmitter } from 'node:events'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createInterface } from 'node:readline'
+import { createWriteStream, mkdirSync, type WriteStream } from 'node:fs'
+import { join } from 'node:path'
+import { app } from 'electron'
 import { log } from '../logger'
 import { LineTransport } from '../rpc/line-transport'
 import { resolveSidecarCommand } from './resolve-binary'
@@ -25,9 +28,40 @@ export class SidecarSupervisor extends EventEmitter {
   private restartAttempts = 0
   private restartTimer: NodeJS.Timeout | null = null
   private stopped = true
+  private sidecarLog: WriteStream | null = null
 
   get state(): SupervisorState {
     return this._state
+  }
+
+  /**
+   * Lazily open a plaintext `sidecar.log` next to the main electron-log
+   * file, for archiving python-side stderr and lifecycle events.  This
+   * makes production crashes diagnosable without having to grep
+   * `main.log` for interleaved `[sidecar:stderr]` lines.
+   *
+   * Path: `<userData>/logs/sidecar.log`
+   *   — Windows: %APPDATA%\historiandownloader\logs\sidecar.log
+   *   — macOS:   ~/Library/Application Support/historiandownloader/logs/sidecar.log
+   */
+  private getSidecarLog(): WriteStream {
+    if (this.sidecarLog) return this.sidecarLog
+    const logsDir = join(app.getPath('userData'), 'logs')
+    try {
+      mkdirSync(logsDir, { recursive: true })
+    } catch {
+      // best-effort; createWriteStream will surface the real error
+    }
+    this.sidecarLog = createWriteStream(join(logsDir, 'sidecar.log'), { flags: 'a' })
+    return this.sidecarLog
+  }
+
+  private writeSidecarLog(line: string): void {
+    try {
+      this.getSidecarLog().write(`${new Date().toISOString()} ${line}\n`)
+    } catch {
+      // never let logging crash supervision
+    }
   }
 
   private setState(next: SupervisorState): void {
@@ -44,7 +78,9 @@ export class SidecarSupervisor extends EventEmitter {
   private spawnOnce(): void {
     if (this.stopped) return
     const cmd = resolveSidecarCommand()
-    log.info(`[sidecar] spawn: ${cmd.command} ${cmd.args.join(' ')}`)
+    const cmdline = `${cmd.command} ${cmd.args.join(' ')}`
+    log.info(`[sidecar] spawn: ${cmdline}`)
+    this.writeSidecarLog(`=== SPAWN ${cmdline} (cwd=${cmd.cwd ?? '<default>'}) ===`)
     this.setState('starting')
 
     let child: ChildProcessWithoutNullStreams
@@ -56,7 +92,9 @@ export class SidecarSupervisor extends EventEmitter {
         windowsHide: true
       })
     } catch (err) {
-      log.error('[sidecar] spawn threw:', (err as Error).message)
+      const msg = (err as Error).message
+      log.error('[sidecar] spawn threw:', msg)
+      this.writeSidecarLog(`=== SPAWN_THREW ${msg} ===`)
       this.scheduleRestart(err as Error)
       return
     }
@@ -65,6 +103,7 @@ export class SidecarSupervisor extends EventEmitter {
 
     child.once('spawn', () => {
       log.info(`[sidecar] pid=${child.pid} running`)
+      this.writeSidecarLog(`=== RUNNING pid=${child.pid} ===`)
     })
 
     const transport = new LineTransport(child.stdout, child.stdin)
@@ -72,15 +111,18 @@ export class SidecarSupervisor extends EventEmitter {
 
     createInterface({ input: child.stderr, crlfDelay: Infinity }).on('line', (line) => {
       log.info(`[sidecar:stderr] ${line}`)
+      this.writeSidecarLog(`[stderr] ${line}`)
       this.emit('stderr', line)
     })
 
     child.on('error', (err) => {
       log.error('[sidecar] process error:', err.message)
+      this.writeSidecarLog(`=== PROCESS_ERROR ${err.message} ===`)
     })
 
     child.on('exit', (code, signal) => {
       log.warn(`[sidecar] exit code=${code} signal=${signal}`)
+      this.writeSidecarLog(`=== EXIT code=${code} signal=${signal ?? 'null'} ===`)
       this.transport?.close()
       this.transport = null
       this.child = null
