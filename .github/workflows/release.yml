@@ -49,12 +49,18 @@ jobs:
         with:
           python-version: '3.11'
           architecture: 'x64'
-          cache: 'pip'
 
-      - name: Install Python build deps
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install "pyinstaller>=6.8" "cryptography>=43" "pywin32>=306" "pymssql>=2.2"
+      - name: Setup uv
+        # uv 比 pip 快 ~10 倍，并且有内建 wheel 缓存。这里只做"快速装
+        # PyInstaller + cryptography + pywin32 + pymssql 到系统 Python"这
+        # 件事，其余 sidecar 打包流程不变。
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: python/requirements-build.txt
+
+      - name: Install Python build deps (via uv)
+        run: uv pip install --system -r python/requirements-build.txt
 
       - name: Install Node deps
         run: pnpm install --frozen-lockfile
@@ -64,6 +70,54 @@ jobs:
 
       - name: Build sidecar (PyInstaller → hd-sidecar.exe)
         run: pnpm run sidecar:build
+
+      - name: Verify sidecar exe was produced
+        # 打包完后显式检查 resources/hd-sidecar/hd-sidecar.exe 真的存在 +
+        # 启动能输出 system.ready。之前 v0.1.0 编译是过的、但 exe 启动
+        # 就崩 (asyncio loop policy bug)，CI 静悄悄把坏 exe 塞进了安装
+        # 包。加这步 smoke test 就能在发布前拦下这种 bug。
+        shell: pwsh
+        run: |
+          $exe = "resources/hd-sidecar/hd-sidecar.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "sidecar exe missing: $exe"
+            exit 1
+          }
+          Write-Host "sidecar exe present: $((Get-Item $exe).Length) bytes"
+          # 启动 exe，从 stdout 读 system.ready 事件。超时 15s。
+          $psi = New-Object System.Diagnostics.ProcessStartInfo
+          $psi.FileName = (Resolve-Path $exe).Path
+          $psi.RedirectStandardInput = $true
+          $psi.RedirectStandardOutput = $true
+          $psi.RedirectStandardError = $true
+          $psi.UseShellExecute = $false
+          $p = [System.Diagnostics.Process]::Start($psi)
+          $deadline = (Get-Date).AddSeconds(15)
+          $ready = $false
+          while ((Get-Date) -lt $deadline) {
+            if ($p.StandardOutput.Peek() -ge 0) {
+              $line = $p.StandardOutput.ReadLine()
+              Write-Host "[sidecar-stdout] $line"
+              if ($line -match '"method"\s*:\s*"system.ready"') {
+                $ready = $true
+                break
+              }
+            } else {
+              Start-Sleep -Milliseconds 200
+            }
+          }
+          if (-not $p.HasExited) {
+            $p.StandardInput.Close()
+            Start-Sleep -Seconds 1
+            if (-not $p.HasExited) { $p.Kill() }
+          }
+          $stderr = $p.StandardError.ReadToEnd()
+          if ($stderr) { Write-Host "[sidecar-stderr]`n$stderr" }
+          if (-not $ready) {
+            Write-Error "sidecar did not emit system.ready within 15s"
+            exit 1
+          }
+          Write-Host "sidecar smoke test passed"
 
       - name: Typecheck
         run: pnpm run typecheck

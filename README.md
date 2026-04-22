@@ -28,16 +28,33 @@ pnpm install
 
 The sidecar runs in dev straight from source (`python python/main.py`),
 but packaged builds ship a PyInstaller onedir executable. Install the
-build toolchain once:
+build toolchain once.
+
+**Recommended — via [uv](https://docs.astral.sh/uv/)**
+(≈10× faster than pip, wheel cache baked in):
 
 ```bash
+# install uv once per machine
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# then from the repo root:
 pnpm run sidecar:install
+```
+
+**Fallback — via pip** (if you can't install uv):
+
+```bash
+pnpm run sidecar:install:pip
 # or directly:
 pip install -r python/requirements-build.txt
 ```
 
-On macOS with a system Python that rejects global pip (`externally-managed-environment`),
-create a venv first:
+On macOS with a system Python that rejects global pip
+(`externally-managed-environment`), either use `uv` (it creates its own
+environment) or a venv:
 
 ```bash
 python3 -m venv .venv-build
