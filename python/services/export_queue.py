@@ -17,7 +17,6 @@ from services.segmenter import Segment, split_segments
 from storage.db import Storage, public_task_view
 from util.time import iso_now, parse_iso
 
-
 log = logging.getLogger(__name__)
 
 
@@ -30,7 +29,7 @@ class _TaskControls:
 
     def __init__(self) -> None:
         self.pause_event = asyncio.Event()
-        self.pause_event.set()           # initially "running" (not paused)
+        self.pause_event.set()  # initially "running" (not paused)
         self.cancel_flag = False
 
 
@@ -67,7 +66,9 @@ class ExportQueue:
 
     def start(self) -> None:
         if self._worker is None:
-            self._worker = asyncio.create_task(self._run_forever(), name="export-worker")
+            self._worker = asyncio.create_task(
+                self._run_forever(), name="export-worker"
+            )
             log.info("export queue worker started")
 
     async def stop(self) -> None:
@@ -166,8 +167,10 @@ class ExportQueue:
         except ValueError as e:
             log.error("task %s has invalid range: %s", task_id, e)
             self._storage.update_task(task_id, status="failed", error=str(e))
-            await self._emit("historian.export.statusChanged",
-                             {"task": public_task_view(self._storage.get_task(task_id) or {})})
+            await self._emit(
+                "historian.export.statusChanged",
+                {"task": public_task_view(self._storage.get_task(task_id) or {})},
+            )
             return
 
         tag_ids: list[str] = task["tagIds"]
@@ -190,18 +193,25 @@ class ExportQueue:
         except errors.OutputDirUnwritable as e:
             log.error("output dir not writable: %s", e.message)
             self._storage.update_task(task_id, status="failed", error=e.message)
-            await self._emit("historian.export.statusChanged",
-                             {"task": public_task_view(self._storage.get_task(task_id) or {})})
+            await self._emit(
+                "historian.export.statusChanged",
+                {"task": public_task_view(self._storage.get_task(task_id) or {})},
+            )
             return
 
-        server = self._server_provider(task["serverId"]) or {"id": task["serverId"], "type": "mock"}
+        server = self._server_provider(task["serverId"]) or {
+            "id": task["serverId"],
+            "type": "mock",
+        }
         try:
             adapter = self._adapter_factory(server)
         except Exception as e:
             log.exception("adapter factory failed for task %s", task_id)
             self._storage.update_task(task_id, status="failed", error=str(e))
-            await self._emit("historian.export.statusChanged",
-                             {"task": public_task_view(self._storage.get_task(task_id) or {})})
+            await self._emit(
+                "historian.export.statusChanged",
+                {"task": public_task_view(self._storage.get_task(task_id) or {})},
+            )
             return
 
         ext = writers.extension_for(fmt)
@@ -219,8 +229,10 @@ class ExportQueue:
         total_bytes = 0
         last_progress_emit = 0.0
 
-        await self._emit("historian.export.statusChanged",
-                         {"task": public_task_view(self._storage.get_task(task_id) or {})})
+        await self._emit(
+            "historian.export.statusChanged",
+            {"task": public_task_view(self._storage.get_task(task_id) or {})},
+        )
 
         # Excel is emitted as a single-shot write at the end (not append-friendly).
         excel_rows: list[dict] | None = [] if fmt == "Excel" else None
@@ -233,7 +245,9 @@ class ExportQueue:
                 if ctl.cancel_flag:
                     raise errors.ExportCancelled()
 
-                rows = await self._read_segment_rows(adapter, tag_ids, seg, task["sampling"])
+                rows = await self._read_segment_rows(
+                    adapter, tag_ids, seg, task["sampling"]
+                )
 
                 if fmt == "CSV":
                     stats = writers.write_csv_segment(
@@ -275,7 +289,10 @@ class ExportQueue:
                 )
 
                 now = time.monotonic()
-                if now - last_progress_emit >= self.PROGRESS_INTERVAL_S or seg.index + 1 == len(segments):
+                if (
+                    now - last_progress_emit >= self.PROGRESS_INTERVAL_S
+                    or seg.index + 1 == len(segments)
+                ):
                     await self._emit(
                         "historian.export.progress",
                         {
@@ -313,31 +330,39 @@ class ExportQueue:
                 sizeBytes=total_bytes,
             )
             final = self._storage.get_task(task_id) or {}
-            await self._emit("historian.export.statusChanged", {"task": public_task_view(final)})
+            await self._emit(
+                "historian.export.statusChanged", {"task": public_task_view(final)}
+            )
             # Record history.
-            self._storage.add_history({
-                "taskId": task_id,
-                "name": task["name"],
-                "path": str(output_path),
-                "serverId": task["serverId"],
-                "tagCount": len(tag_ids),
-                "rows": total_rows_written,
-                "sizeBytes": total_bytes,
-                "range": task["range"],
-                "format": fmt,
-                "createdAt": iso_now(),
-            })
+            self._storage.add_history(
+                {
+                    "taskId": task_id,
+                    "name": task["name"],
+                    "path": str(output_path),
+                    "serverId": task["serverId"],
+                    "tagCount": len(tag_ids),
+                    "rows": total_rows_written,
+                    "sizeBytes": total_bytes,
+                    "range": task["range"],
+                    "format": fmt,
+                    "createdAt": iso_now(),
+                }
+            )
 
         except errors.ExportCancelled:
             log.info("task %s cancelled", task_id)
             self._storage.update_task(task_id, status="cancelled")
-            await self._emit("historian.export.statusChanged",
-                             {"task": public_task_view(self._storage.get_task(task_id) or {})})
+            await self._emit(
+                "historian.export.statusChanged",
+                {"task": public_task_view(self._storage.get_task(task_id) or {})},
+            )
         except Exception as e:
             log.exception("task %s failed", task_id)
             self._storage.update_task(task_id, status="failed", error=str(e))
-            await self._emit("historian.export.statusChanged",
-                             {"task": public_task_view(self._storage.get_task(task_id) or {})})
+            await self._emit(
+                "historian.export.statusChanged",
+                {"task": public_task_view(self._storage.get_task(task_id) or {})},
+            )
         finally:
             self._current_task_id = None
             if adapter is not None:

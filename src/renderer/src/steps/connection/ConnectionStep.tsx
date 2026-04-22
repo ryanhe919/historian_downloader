@@ -3,7 +3,7 @@
  *
  * Frontend A is expected to mount this in App.tsx for `step === 0`.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Empty,
@@ -77,7 +77,7 @@ export function ConnectionStep(): React.JSX.Element {
   const servers = useMemo<Server[]>(() => data ?? [], [data])
 
   const [search, setSearch] = useState('')
-  const [draft, setDraft] = useState<ConnectionDraft>(EMPTY_DRAFT)
+  const [draftOverride, setDraftOverride] = useState<ConnectionDraft | null>(null)
   const formRef = useRef<HTMLDivElement | null>(null)
 
   // `editingId` is derived from the zustand-owned `selectedServerId`; the
@@ -87,23 +87,12 @@ export function ConnectionStep(): React.JSX.Element {
   // nothing (the render-time branch races handleNew's own setState).
   const editingId = selectedServerId
 
-  // Sync draft whenever the selected server changes: on pick, hydrate the
-  // form; on clear (new), reset to empty. We compare against a ref of the
-  // last-applied id to avoid clobbering user edits while the same server
-  // stays selected.
-  const lastAppliedIdRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (lastAppliedIdRef.current === selectedServerId) return
-    lastAppliedIdRef.current = selectedServerId
-    if (!selectedServerId) {
-      setDraft({ ...EMPTY_DRAFT })
-      return
-    }
+  const draft = useMemo<ConnectionDraft>(() => {
+    if (draftOverride) return draftOverride
+    if (!selectedServerId) return EMPTY_DRAFT
     const found = servers.find((s) => s.id === selectedServerId)
-    if (found) {
-      setDraft(serverToDraft(found))
-    }
-  }, [selectedServerId, servers])
+    return found ? serverToDraft(found) : EMPTY_DRAFT
+  }, [draftOverride, selectedServerId, servers])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -125,16 +114,12 @@ export function ConnectionStep(): React.JSX.Element {
   const [pendingDelete, setPendingDelete] = useState<Server | null>(null)
 
   const handleNew = useCallback(() => {
-    // Clearing the zustand selection triggers the sync effect above which
-    // resets `draft` to EMPTY_DRAFT. We also scroll + focus the form so
-    // the user has an immediate visible cue that they're now editing a
-    // brand-new connection (when the list is empty both before/after,
-    // without this cue the button looked inert).
+    // Clearing the selection drops any local draft override, so the derived
+    // form state falls back to a fresh EMPTY_DRAFT. We also scroll + focus
+    // the form so the user has an immediate visible cue that they're now
+    // editing a brand-new connection.
     setSelectedServerId(null)
-    // Force-reset in this tick too — the effect runs after paint, and we
-    // want the form to be cleared synchronously for the focus below.
-    setDraft({ ...EMPTY_DRAFT })
-    lastAppliedIdRef.current = null
+    setDraftOverride(null)
     requestAnimationFrame(() => {
       const el = formRef.current
       if (!el) return
@@ -153,6 +138,9 @@ export function ConnectionStep(): React.JSX.Element {
       if (prev && prev !== id) {
         // Only drop tags, not time-range — time presets are generic.
         clearDownstreamFromConnection()
+      }
+      if (prev !== id) {
+        setDraftOverride(null)
       }
       setSelectedServerId(id)
     },
@@ -243,6 +231,7 @@ export function ConnectionStep(): React.JSX.Element {
         }
       })
       toast.success('已保存', { title: res.server.name })
+      setDraftOverride(null)
       await refetch()
       setSelectedServerId(res.id)
     } catch (e) {
@@ -320,7 +309,7 @@ export function ConnectionStep(): React.JSX.Element {
       <div ref={formRef}>
         <ConnectionForm
           value={draft}
-          onChange={setDraft}
+          onChange={setDraftOverride}
           onTest={() => void handleTest()}
           onSave={() => void handleSave()}
           onDelete={
@@ -359,7 +348,11 @@ export function ConnectionStep(): React.JSX.Element {
           <Button variant="bordered" onClick={() => setPendingDelete(null)} autoFocus>
             取消
           </Button>
-          <Button color="danger" onClick={() => void handleConfirmDelete()} loading={deleteMut.loading}>
+          <Button
+            color="danger"
+            onClick={() => void handleConfirmDelete()}
+            loading={deleteMut.loading}
+          >
             删除
           </Button>
         </ModalFooter>

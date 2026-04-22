@@ -57,7 +57,9 @@ _PRESET_DELTAS: dict[str, timedelta] = {
 }
 
 
-def preset_to_range(preset_id: str, now: datetime | None = None) -> tuple[datetime, datetime]:
+def preset_to_range(
+    preset_id: str, now: datetime | None = None
+) -> tuple[datetime, datetime]:
     """Return (start, end) for a preset id. Raises KeyError for unknown preset."""
     delta = _PRESET_DELTAS[preset_id]
     end = now or now_utc()

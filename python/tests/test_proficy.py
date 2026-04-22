@@ -25,7 +25,6 @@ from adapters.proficy import (
     _split_times,
 )
 
-
 # ---------------------------------------------------------------------------
 # Pure helpers — no COM involved.
 # ---------------------------------------------------------------------------
@@ -57,8 +56,13 @@ def test_build_ihtrend_sql_matches_legacy_template():
 
 
 def test_build_ihtrend_sql_raw_mode():
-    sql = build_ihtrend_sql(["x"], "2026-04-21 00:00:00", "2026-04-21 01:00:00",
-                            interval_ms=5000, sampling_mode="Raw")
+    sql = build_ihtrend_sql(
+        ["x"],
+        "2026-04-21 00:00:00",
+        "2026-04-21 01:00:00",
+        interval_ms=5000,
+        sampling_mode="Raw",
+    )
     assert "SamplingMode=Raw" in sql
     assert "intervalmilliseconds=5000" in sql
 
@@ -137,7 +141,9 @@ def _build_mock_conn(fake_rows_by_sql: dict[str, list]):
 
         cur.execute.side_effect = _execute
         cur.fetchall.side_effect = lambda: list(state["rows"])
-        cur.fetchmany.side_effect = lambda n=1: [state["rows"].pop(0) for _ in range(min(n, len(state["rows"])))]
+        cur.fetchmany.side_effect = lambda n=1: [
+            state["rows"].pop(0) for _ in range(min(n, len(state["rows"])))
+        ]
         cur.fetchone.side_effect = lambda: (state["rows"][0] if state["rows"] else None)
         cur.close.return_value = None
         return cur
@@ -150,19 +156,23 @@ def _build_mock_conn(fake_rows_by_sql: dict[str, list]):
 @pytest.fixture
 def patched_environment():
     """Pretend we're on a Windows host with pywin32/pythoncom available."""
-    with patch.object(ProficyHistorianAdapter, "is_available", classmethod(lambda cls: True)):
+    with patch.object(
+        ProficyHistorianAdapter, "is_available", classmethod(lambda cls: True)
+    ):
         yield
 
 
 @pytest.mark.asyncio
 async def test_list_tag_tree_queries_ihtags_and_builds_tree(patched_environment):
-    conn = _build_mock_conn({
-        "FROM ihtags": [
-            ["BOILER_01.TEMP"],
-            ["BOILER_01.PRES"],
-            ["BOILER_02.TEMP"],
-        ]
-    })
+    conn = _build_mock_conn(
+        {
+            "FROM ihtags": [
+                ["BOILER_01.TEMP"],
+                ["BOILER_01.PRES"],
+                ["BOILER_02.TEMP"],
+            ]
+        }
+    )
     adapter = ProficyHistorianAdapter({"id": "p1", "host": "10.0.0.1", "timeoutS": 5})
     with patch.object(adapter, "_open_connection", return_value=conn):
         nodes = await adapter.list_tag_tree(path=None, depth=1)
@@ -242,6 +252,7 @@ async def test_get_tag_meta_raises_when_missing(patched_environment):
     conn = _build_mock_conn({"FROM ihtags": []})
     adapter = ProficyHistorianAdapter({"id": "p1", "host": "h", "timeoutS": 5})
     from rpc.errors import TagNotFoundError
+
     with patch.object(adapter, "_open_connection", return_value=conn):
         with pytest.raises(TagNotFoundError):
             await adapter.get_tag_meta("nope")
@@ -259,8 +270,11 @@ async def test_read_segment_yields_rows_with_expected_sql(patched_environment):
     fake_dt2 = datetime(2026, 4, 21, 8, 1, 0, tzinfo=timezone.utc)
 
     class FakeTs:
-        def __init__(self, dt): self._dt = dt
-        def timestamp(self): return self._dt.timestamp()
+        def __init__(self, dt):
+            self._dt = dt
+
+        def timestamp(self):
+            return self._dt.timestamp()
 
     rows_by_sql = {
         "FROM ihtrend": [
@@ -293,9 +307,12 @@ async def test_read_segment_yields_rows_with_expected_sql(patched_environment):
     start = datetime(2026, 4, 21, 8, 0, 0, tzinfo=timezone.utc)
     end = start + timedelta(minutes=5)
     with patch.object(adapter, "_open_connection", side_effect=lambda: make_conn()):
-        rows = [r async for r in adapter.read_segment(
-            ["BOILER_01.TEMP", "BOILER_01.PRES"], start, end, "1m"
-        )]
+        rows = [
+            r
+            async for r in adapter.read_segment(
+                ["BOILER_01.TEMP", "BOILER_01.PRES"], start, end, "1m"
+            )
+        ]
 
     assert len(rows) == 2
     for r in rows:
@@ -316,8 +333,9 @@ async def test_read_segment_yields_rows_with_expected_sql(patched_environment):
 async def test_test_connection_returns_ok_with_latency(patched_environment):
     rows = [["TAG" + str(i)] for i in range(42)]
     conn = _build_mock_conn({"FROM ihtags": rows})
-    adapter = ProficyHistorianAdapter({"id": "p1", "host": "h", "timeoutS": 5,
-                                       "version": "iFix 6.5"})
+    adapter = ProficyHistorianAdapter(
+        {"id": "p1", "host": "h", "timeoutS": 5, "version": "iFix 6.5"}
+    )
     with patch.object(adapter, "_open_connection", return_value=conn):
         res = await adapter.test_connection()
     assert res["ok"] is True

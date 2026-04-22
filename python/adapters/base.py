@@ -26,7 +26,9 @@ class BaseHistorianAdapter:
         """Return ``{ok, latencyMs, tagCount?, version?, detail?}``."""
         raise NotImplementedError
 
-    async def list_tag_tree(self, path: str | None = None, depth: int = 1) -> list[dict]:
+    async def list_tag_tree(
+        self, path: str | None = None, depth: int = 1
+    ) -> list[dict]:
         raise NotImplementedError
 
     async def search_tags(

@@ -117,10 +117,7 @@ export function TimeRangeStep(): React.JSX.Element {
   const resetTimeRange = useTimeRangeStore((s) => s.reset)
 
   const isDirty =
-    activePreset !== 'last-y' ||
-    customRange !== null ||
-    sampling !== '1m' ||
-    segmentDays !== 10
+    activePreset !== 'last-y' || customRange !== null || sampling !== '1m' || segmentDays !== 10
 
   const range = useEffectiveRange()
   const tagIds = useMemo(() => Array.from(selectedIds), [selectedIds])
@@ -264,12 +261,9 @@ export function TimeRangeStep(): React.JSX.Element {
                   </FormField>
                 </div>
                 {customRange &&
-                  new Date(customRange.end).getTime() <=
-                    new Date(customRange.start).getTime() && (
+                  new Date(customRange.end).getTime() <= new Date(customRange.start).getTime() && (
                     <div style={{ marginTop: 10 }}>
-                      <Callout variant="danger">
-                        结束时间必须晚于开始时间
-                      </Callout>
+                      <Callout variant="danger">结束时间必须晚于开始时间</Callout>
                     </div>
                   )}
               </>

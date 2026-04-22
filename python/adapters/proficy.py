@@ -24,7 +24,6 @@ from util.time import format_iso, sampling_seconds
 from . import _oledb
 from .base import BaseHistorianAdapter
 
-
 log = logging.getLogger(__name__)
 
 
@@ -37,6 +36,7 @@ def _get_pythoncom():
     """Return the pythoncom module or None if unavailable."""
     try:
         import pythoncom  # type: ignore
+
         return pythoncom
     except ImportError:
         return None
@@ -80,7 +80,7 @@ def split_tags(tags: list[str], n: int) -> list[list[str]]:
     """Split tag list into chunks of size ``n`` (used for ihtrend batching)."""
     if len(tags) < 1:
         raise ValueError("split_tags: empty input")
-    return [tags[i:i + n] for i in range(0, len(tags), n)]
+    return [tags[i : i + n] for i in range(0, len(tags), n)]
 
 
 def build_ihtrend_sql(
@@ -139,8 +139,8 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
     """GE Proficy iFix Historian adapter (Windows + ADODB)."""
 
     DEFAULT_PROVIDER = "iHOLEDB.iHistorian.1"
-    TAG_BATCH_SIZE = 20   # tags per ihtrend query (legacy default)
-    TIME_CHUNK_MIN = 3    # chunk window = interval_min * 1440 * TIME_CHUNK_MIN
+    TAG_BATCH_SIZE = 20  # tags per ihtrend query (legacy default)
+    TIME_CHUNK_MIN = 3  # chunk window = interval_min * 1440 * TIME_CHUNK_MIN
 
     @classmethod
     def is_available(cls) -> bool:
@@ -169,7 +169,8 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
                 host=s.get("host"),
                 user=s.get("username"),
                 password=s.get("password") or "",
-                provider=(s.get("extra") or {}).get("provider") or self.DEFAULT_PROVIDER,
+                provider=(s.get("extra") or {}).get("provider")
+                or self.DEFAULT_PROVIDER,
             )
         except Exception as exc:  # pragma: no cover — Windows COM failures
             msg = str(exc).lower()
@@ -202,7 +203,9 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
             return {"tagCount": tag_count}
 
         try:
-            res = await asyncio.wait_for(loop.run_in_executor(None, _probe), timeout=timeout_s)
+            res = await asyncio.wait_for(
+                loop.run_in_executor(None, _probe), timeout=timeout_s
+            )
         except asyncio.TimeoutError as exc:
             raise errors.ConnectionTimeoutError(timeout_s) from exc
         latency_ms = int((_time.monotonic() - t0) * 1000)
@@ -215,7 +218,9 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
 
     # ---- tag browsing ----
 
-    async def list_tag_tree(self, path: str | None = None, depth: int = 1) -> list[dict]:
+    async def list_tag_tree(
+        self, path: str | None = None, depth: int = 1
+    ) -> list[dict]:
         loop = asyncio.get_running_loop()
         prefix = (path or "").strip()
 
@@ -291,17 +296,19 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
             type_ = _classify_type(dtype)
             if filter_type in ("Analog", "Digital") and type_ != filter_type:
                 continue
-            items.append({
-                "id": tagname,
-                "label": tagname,
-                "kind": "leaf",
-                "desc": desc or "",
-                "unit": unit or "",
-                "type": type_,
-                "dataType": dtype or "",
-            })
+            items.append(
+                {
+                    "id": tagname,
+                    "label": tagname,
+                    "kind": "leaf",
+                    "desc": desc or "",
+                    "unit": unit or "",
+                    "type": type_,
+                    "dataType": dtype or "",
+                }
+            )
         total = len(items)
-        return {"items": items[offset: offset + limit], "total": total}
+        return {"items": items[offset : offset + limit], "total": total}
 
     async def get_tag_meta(self, tag_id: str) -> dict:
         loop = asyncio.get_running_loop()
@@ -390,7 +397,9 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
         tag_batches = split_tags(tag_ids, self.TAG_BATCH_SIZE)
         loop = asyncio.get_running_loop()
 
-        def _run_one(tag_batch: list[str], chunk_start: datetime, chunk_end: datetime) -> list[list]:
+        def _run_one(
+            tag_batch: list[str], chunk_start: datetime, chunk_end: datetime
+        ) -> list[list]:
             conn = self._open_connection()
             try:
                 sql = build_ihtrend_sql(
@@ -411,7 +420,9 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
             order: list[str] = []
             for batch in tag_batches:
                 try:
-                    rows = await loop.run_in_executor(None, _run_one, batch, c_start, c_end)
+                    rows = await loop.run_in_executor(
+                        None, _run_one, batch, c_start, c_end
+                    )
                 except errors.RpcError:
                     raise
                 except Exception as exc:
@@ -430,8 +441,10 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
                 yield {
                     "time": ts,
                     "values": [row_vals.get(t) for t in tag_ids],
-                    "quality": ["Good" if row_vals.get(t) is not None else "Bad"
-                                for t in tag_ids],
+                    "quality": [
+                        "Good" if row_vals.get(t) is not None else "Bad"
+                        for t in tag_ids
+                    ],
                 }
 
     async def preview_sample(
@@ -473,7 +486,9 @@ def _build_tree_level(tag_names: list[str], prefix: str, depth: int) -> list[dic
     """Given a flat list of ``foo.bar.baz`` style tagnames, build the direct
     children under ``prefix`` as TagNode dicts. Recurses up to ``depth``.
     """
-    children: dict[str, dict] = {}  # child segment → {"leaves": set, "nested": set[fullname]}
+    children: dict[str, dict] = (
+        {}
+    )  # child segment → {"leaves": set, "nested": set[fullname]}
     leaf_nodes: dict[str, str] = {}  # full name → ''
     prefix_dot = f"{prefix}." if prefix else ""
     plen = len(prefix_dot)
@@ -500,11 +515,13 @@ def _build_tree_level(tag_names: list[str], prefix: str, depth: int) -> list[dic
 
     out: list[dict] = []
     for name, label in leaf_nodes.items():
-        out.append({
-            "id": name,
-            "label": label,
-            "kind": "leaf",
-        })
+        out.append(
+            {
+                "id": name,
+                "label": label,
+                "kind": "leaf",
+            }
+        )
     for full_head, bucket in children.items():
         short = full_head.split(".")[-1]
         leaf_count = len(bucket["leaves"])
@@ -525,7 +542,9 @@ def _build_tree_level(tag_names: list[str], prefix: str, depth: int) -> list[dic
     return out
 
 
-def _split_times(start: datetime, end: datetime, chunk_minutes: int) -> list[tuple[datetime, datetime]]:
+def _split_times(
+    start: datetime, end: datetime, chunk_minutes: int
+) -> list[tuple[datetime, datetime]]:
     """Mirror of legacy ``__split_times`` using real datetimes (UTC)."""
     if chunk_minutes <= 0:
         return [(start, end)]

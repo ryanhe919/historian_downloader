@@ -22,7 +22,6 @@ import pytest
 from rpc import errors
 from services.writers import ensure_output_dir, resolve_output_dir
 
-
 # ---------------------------------------------------------------------------
 # resolve_output_dir — pure path resolution (no filesystem side effects)
 # ---------------------------------------------------------------------------
@@ -43,7 +42,10 @@ def test_resolve_absolutizes_relative(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     resolved = resolve_output_dir("sub/dir")
     assert resolved.is_absolute()
-    assert resolved == (tmp_path / "sub" / "dir").resolve() or resolved == tmp_path / "sub" / "dir"
+    assert (
+        resolved == (tmp_path / "sub" / "dir").resolve()
+        or resolved == tmp_path / "sub" / "dir"
+    )
 
 
 def test_resolve_preserves_absolute(tmp_path):

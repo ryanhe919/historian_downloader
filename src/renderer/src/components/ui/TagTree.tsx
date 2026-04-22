@@ -83,6 +83,10 @@ export function TagTree({
 
   const parentRef = useRef<HTMLDivElement | null>(null)
 
+  // TanStack Virtual is intentionally used here for large trees; React's
+  // compiler-aware lint flags it as incompatible, but this component does
+  // not depend on compiler memoization for correctness.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,

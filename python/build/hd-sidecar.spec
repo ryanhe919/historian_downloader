@@ -101,6 +101,7 @@ if IS_WIN:
     hiddenimports += [
         "win32com",
         "win32com.client",
+        "win32timezone",
         "pythoncom",
         "pywintypes",
         "pymssql",

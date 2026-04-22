@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 @dataclass
 class Segment:
-    index: int       # 0-based
+    index: int  # 0-based
     start: datetime
     end: datetime
 

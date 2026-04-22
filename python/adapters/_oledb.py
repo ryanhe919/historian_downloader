@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 
 try:  # pragma: no cover — import-time Windows check
     import win32com.client as _win32com  # type: ignore
+
     _HAS_WIN32 = True
 except Exception as _exc:  # ImportError on macOS/Linux
     _win32com = None
@@ -106,8 +107,14 @@ def is_available() -> bool:
 def connect(dsn, user=None, password=None, host=None, database=None, provider=None):
     """Open an ADODB connection. Signature matches legacy ``oledb.connect``."""
     conn = Connection()
-    conn.connect(dsn, user=user, password=password,
-                 host=host, database=database, provider=provider)
+    conn.connect(
+        dsn,
+        user=user,
+        password=password,
+        host=host,
+        database=database,
+        provider=provider,
+    )
     return conn
 
 
@@ -122,8 +129,9 @@ class Connection:
             )
         self.Conn = _win32com.Dispatch("ADODB.Connection")
 
-    def connect(self, dsn, user=None, password=None, host=None,
-                database=None, provider=None):
+    def connect(
+        self, dsn, user=None, password=None, host=None, database=None, provider=None
+    ):
         if self.Conn.State == 1:
             self.Conn.Close()
 
@@ -178,8 +186,7 @@ class Cursor:
         self.rsListPos = 0
         query = operation if parameters is None else (operation % parameters)
         self.rs.Open(query, ActiveConnection=self.PassConn)
-        self.Fields = [self.rs.Fields.Item(col)
-                       for col in range(self.rs.Fields.Count)]
+        self.Fields = [self.rs.Fields.Item(col) for col in range(self.rs.Fields.Count)]
         self.description = self.describefields()
 
     def describefields(self):
@@ -195,31 +202,57 @@ class Cursor:
                 fieldtype = fieldtype & (~adVector)
 
             type_code = UNKNOWN
-            if fieldtype in (adBigInt, adBoolean, adCurrency, adDecimal,
-                             adDouble, adInteger, adNumeric, adSingle,
-                             adSmallInt, adTinyInt, adUnsignedBigInt,
-                             adUnsignedInt, adUnsignedSmallInt,
-                             adUnsignedTinyInt):
+            if fieldtype in (
+                adBigInt,
+                adBoolean,
+                adCurrency,
+                adDecimal,
+                adDouble,
+                adInteger,
+                adNumeric,
+                adSingle,
+                adSmallInt,
+                adTinyInt,
+                adUnsignedBigInt,
+                adUnsignedInt,
+                adUnsignedSmallInt,
+                adUnsignedTinyInt,
+            ):
                 type_code = NUMBER
-            elif fieldtype in (adBinary, adGUID, adIDispatch, adIUnknown,
-                               adLongVarBinary, adVarBinary):
+            elif fieldtype in (
+                adBinary,
+                adGUID,
+                adIDispatch,
+                adIUnknown,
+                adLongVarBinary,
+                adVarBinary,
+            ):
                 type_code = BINARY
-            elif fieldtype in (adBSTR, adChar, adLongVarChar, adLongVarWChar,
-                               adVarChar, adVarWChar, adWChar):
+            elif fieldtype in (
+                adBSTR,
+                adChar,
+                adLongVarChar,
+                adLongVarWChar,
+                adVarChar,
+                adVarWChar,
+                adWChar,
+            ):
                 type_code = STRING
             elif fieldtype in (adDate, adDBDate, adDBTime, adDBTimeStamp):
                 type_code = DATETIME
             # adEmpty / adError / adUserDefined / adVariant fall through to UNKNOWN
 
-            description.append((
-                field.Name,
-                type_code,
-                field.ActualSize,
-                field.DefinedSize,
-                field.Precision,
-                field.NumericScale,
-                field.Attributes & adFldMayBeNull,
-            ))
+            description.append(
+                (
+                    field.Name,
+                    type_code,
+                    field.ActualSize,
+                    field.DefinedSize,
+                    field.Precision,
+                    field.NumericScale,
+                    field.Attributes & adFldMayBeNull,
+                )
+            )
         return description
 
     def close(self):
@@ -263,8 +296,7 @@ class Cursor:
             rs.Open(operation % row_params, ActiveConnection=self.PassConn)
             self.rsList.append(rs)
         self.rs = self.rsList[0]
-        self.Fields = [self.rs.Fields.Item(col)
-                       for col in range(self.rs.Fields.Count)]
+        self.Fields = [self.rs.Fields.Item(col) for col in range(self.rs.Fields.Count)]
         self.description = self.describefields()
 
     def nextset(self):
@@ -272,8 +304,7 @@ class Cursor:
         if self.rsListPos >= len(self.rsList):
             return None
         self.rs = self.rsList[self.rsListPos]
-        self.Fields = [self.rs.Fields.Item(col)
-                       for col in range(self.rs.Fields.Count)]
+        self.Fields = [self.rs.Fields.Item(col) for col in range(self.rs.Fields.Count)]
         self.description = self.describefields()
         return 1
 

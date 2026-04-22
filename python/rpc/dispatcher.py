@@ -9,7 +9,6 @@ from typing import Any, Awaitable, Callable
 
 from . import errors
 
-
 log = logging.getLogger(__name__)
 
 
@@ -89,12 +88,16 @@ class Dispatcher:
                 # Unknown notification — ignored per spec.
                 log.debug("ignoring unknown notification: %s", method)
                 return None
-            return _error_response(msg_id, errors.METHOD_NOT_FOUND, f"method not found: {method}")
+            return _error_response(
+                msg_id, errors.METHOD_NOT_FOUND, f"method not found: {method}"
+            )
 
         if not isinstance(params, (dict, list)):
             if msg_id is None:
                 return None
-            return _error_response(msg_id, errors.INVALID_PARAMS, "params must be object or array")
+            return _error_response(
+                msg_id, errors.INVALID_PARAMS, "params must be object or array"
+            )
 
         # Notifications: run but never reply.
         if msg_id is None:
@@ -108,7 +111,9 @@ class Dispatcher:
         try:
             result = await _call_handler(handler, params)
         except errors.RpcError as rpc_err:
-            log.info("rpc error in %s: code=%d msg=%s", method, rpc_err.code, rpc_err.message)
+            log.info(
+                "rpc error in %s: code=%d msg=%s", method, rpc_err.code, rpc_err.message
+            )
             return {"jsonrpc": "2.0", "id": msg_id, "error": rpc_err.to_dict()}
         except asyncio.CancelledError:
             raise

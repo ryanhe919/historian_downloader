@@ -41,7 +41,6 @@ from util.logging import configure_logging_to_stderr
 from util.paths import default_output_dir, user_data_dir
 from util.time import iso_now, parse_iso, sampling_seconds, validate_range
 
-
 log = logging.getLogger("hd.sidecar")
 
 
@@ -95,7 +94,9 @@ def _lookup_server(storage: Storage, server_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueue) -> None:
+def register_methods(
+    dispatcher: Dispatcher, storage: Storage, queue: ExportQueue
+) -> None:
 
     # ---- system.* ----
 
@@ -120,7 +121,9 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         server_id = server.get("id")
         adapter = create_adapter(server)
 
-        async def _emit_status(status: str, *, latency_ms=None, error: str | None = None) -> None:
+        async def _emit_status(
+            status: str, *, latency_ms=None, error: str | None = None
+        ) -> None:
             if not server_id:
                 return
             payload: dict = {"serverId": server_id, "status": status}
@@ -204,7 +207,9 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         server = _lookup_server(storage, sid)
         adapter = create_adapter(server)
         try:
-            return await adapter.search_tags(query, limit=limit, offset=offset, filter_type=ftype)
+            return await adapter.search_tags(
+                query, limit=limit, offset=offset, filter_type=ftype
+            )
         finally:
             await adapter.close()
 
@@ -230,7 +235,9 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         sid = _require(params, "serverId", str)
         tag_ids = _require(params, "tagIds", list)
         if len(tag_ids) > 10:
-            raise errors.RpcError(errors.INVALID_PARAMS, "tagIds: max 10 tags for preview")
+            raise errors.RpcError(
+                errors.INVALID_PARAMS, "tagIds: max 10 tags for preview"
+            )
         rng = _require(params, "range", dict)
         start = parse_iso(rng["start"])
         end = parse_iso(rng["end"])
@@ -247,7 +254,9 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         server = _lookup_server(storage, sid)
         adapter = create_adapter(server)
         try:
-            return await adapter.preview_sample(tag_ids, start, end, sampling, max_points=max_points)
+            return await adapter.preview_sample(
+                tag_ids, start, end, sampling, max_points=max_points
+            )
         finally:
             await adapter.close()
 
@@ -310,7 +319,9 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
         }
         task = storage.create_task(task_in)
         await queue.enqueue(task["id"])
-        await dispatcher.emit("historian.export.statusChanged", {"task": public_task_view(task)})
+        await dispatcher.emit(
+            "historian.export.statusChanged", {"task": public_task_view(task)}
+        )
         return {"taskId": task["id"], "task": public_task_view(task)}
 
     # ---- historian.export.pause / .resume / .cancel ----
@@ -389,6 +400,7 @@ def register_methods(dispatcher: Dispatcher, storage: Storage, queue: ExportQueu
 
 def _timestamp_slug() -> str:
     from datetime import datetime, timezone
+
     return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
 
@@ -406,6 +418,7 @@ def _seed_mock_servers_if_requested(storage: Storage) -> None:
         return
     # Local import keeps the production import graph free of mock data.
     from adapters.mock import MOCK_SERVERS
+
     for s in MOCK_SERVERS:
         storage.save_server(s, server_id=s["id"])
     log.info("HD_FORCE_MOCK=1: seeded %d mock servers into empty DB", len(MOCK_SERVERS))
@@ -419,8 +432,12 @@ def _seed_mock_servers_if_requested(storage: Storage) -> None:
 async def amain() -> int:
     configure_logging_to_stderr()
     configure_stdout()
-    log.info("Historian Downloader sidecar v%s starting (py=%s, platform=%s)",
-             VERSION, platform.python_version(), sys.platform)
+    log.info(
+        "Historian Downloader sidecar v%s starting (py=%s, platform=%s)",
+        VERSION,
+        platform.python_version(),
+        sys.platform,
+    )
 
     udir = user_data_dir()
     storage = Storage(udir / "hd.sqlite3")
@@ -445,13 +462,16 @@ async def amain() -> int:
     transport_holder["t"] = transport
 
     # Announce readiness.
-    await emit("system.ready", {
-        "version": VERSION,
-        "pythonVersion": platform.python_version(),
-        "platform": sys.platform,
-        "adapters": adapter_support(),
-        "userDataDir": str(udir),
-    })
+    await emit(
+        "system.ready",
+        {
+            "version": VERSION,
+            "pythonVersion": platform.python_version(),
+            "platform": sys.platform,
+            "adapters": adapter_support(),
+            "userDataDir": str(udir),
+        },
+    )
 
     # Hook SIGTERM for graceful shutdown on POSIX.
     loop = asyncio.get_running_loop()
@@ -465,13 +485,18 @@ async def amain() -> int:
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:
             loop.add_signal_handler(sig, _request_stop)
-        except (NotImplementedError, RuntimeError):  # pragma: no cover — Windows / non-main thread
+        except (
+            NotImplementedError,
+            RuntimeError,
+        ):  # pragma: no cover — Windows / non-main thread
             pass
 
     transport_task = asyncio.create_task(transport.run(), name="rpc-transport")
     stop_task = asyncio.create_task(stop_event.wait(), name="stop-event")
 
-    done, pending = await asyncio.wait({transport_task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
+    done, pending = await asyncio.wait(
+        {transport_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
+    )
     for p in pending:
         p.cancel()
     await queue.stop()

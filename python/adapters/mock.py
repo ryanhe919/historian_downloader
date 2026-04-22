@@ -15,7 +15,6 @@ from typing import AsyncIterator
 from rpc import errors
 from util.time import format_iso, sampling_seconds
 
-
 # ---------- static mock tree ----------
 
 
@@ -52,91 +51,284 @@ def _build_tree() -> list[dict]:
     tree: list[dict] = []
 
     # ---------- 生产线 A ----------
-    line_a = _folder("line-a", "生产线 A", [
-        _folder("line-a/boiler", "锅炉系统", [
-            _leaf("line-a/boiler/BOILER_01.TEMP",   "BOILER_01.TEMP",   "一号锅炉温度", "°C"),
-            _leaf("line-a/boiler/BOILER_01.PRES",   "BOILER_01.PRES",   "一号锅炉压力", "MPa"),
-            _leaf("line-a/boiler/BOILER_01.FLOW",   "BOILER_01.FLOW",   "一号锅炉流量", "m³/h"),
-            _leaf("line-a/boiler/BOILER_01.STATUS", "BOILER_01.STATUS", "一号锅炉状态", "",    type_="Digital", data_type="BOOL"),
-            _leaf("line-a/boiler/BOILER_02.TEMP",   "BOILER_02.TEMP",   "二号锅炉温度", "°C"),
-            _leaf("line-a/boiler/BOILER_02.PRES",   "BOILER_02.PRES",   "二号锅炉压力", "MPa"),
-        ]),
-        _folder("line-a/comp", "压缩机", [
-            _leaf("line-a/comp/COMP_01.RPM", "COMP_01.RPM", "压缩机 1 转速", "rpm"),
-            _leaf("line-a/comp/COMP_01.AMP", "COMP_01.AMP", "压缩机 1 电流", "A"),
-            _leaf("line-a/comp/COMP_02.RPM", "COMP_02.RPM", "压缩机 2 转速", "rpm"),
-            _leaf("line-a/comp/COMP_02.AMP", "COMP_02.AMP", "压缩机 2 电流", "A"),
-        ]),
-        _folder("line-a/pump", "水泵", [
-            _leaf("line-a/pump/PUMP_01.FLOW",    "PUMP_01.FLOW",    "水泵 1 流量", "m³/h"),
-            _leaf("line-a/pump/PUMP_01.VIB",     "PUMP_01.VIB",     "水泵 1 振动", "mm/s"),
-            _leaf("line-a/pump/PUMP_02.FLOW",    "PUMP_02.FLOW",    "水泵 2 流量", "m³/h"),
-        ]),
-    ])
+    line_a = _folder(
+        "line-a",
+        "生产线 A",
+        [
+            _folder(
+                "line-a/boiler",
+                "锅炉系统",
+                [
+                    _leaf(
+                        "line-a/boiler/BOILER_01.TEMP",
+                        "BOILER_01.TEMP",
+                        "一号锅炉温度",
+                        "°C",
+                    ),
+                    _leaf(
+                        "line-a/boiler/BOILER_01.PRES",
+                        "BOILER_01.PRES",
+                        "一号锅炉压力",
+                        "MPa",
+                    ),
+                    _leaf(
+                        "line-a/boiler/BOILER_01.FLOW",
+                        "BOILER_01.FLOW",
+                        "一号锅炉流量",
+                        "m³/h",
+                    ),
+                    _leaf(
+                        "line-a/boiler/BOILER_01.STATUS",
+                        "BOILER_01.STATUS",
+                        "一号锅炉状态",
+                        "",
+                        type_="Digital",
+                        data_type="BOOL",
+                    ),
+                    _leaf(
+                        "line-a/boiler/BOILER_02.TEMP",
+                        "BOILER_02.TEMP",
+                        "二号锅炉温度",
+                        "°C",
+                    ),
+                    _leaf(
+                        "line-a/boiler/BOILER_02.PRES",
+                        "BOILER_02.PRES",
+                        "二号锅炉压力",
+                        "MPa",
+                    ),
+                ],
+            ),
+            _folder(
+                "line-a/comp",
+                "压缩机",
+                [
+                    _leaf(
+                        "line-a/comp/COMP_01.RPM", "COMP_01.RPM", "压缩机 1 转速", "rpm"
+                    ),
+                    _leaf(
+                        "line-a/comp/COMP_01.AMP", "COMP_01.AMP", "压缩机 1 电流", "A"
+                    ),
+                    _leaf(
+                        "line-a/comp/COMP_02.RPM", "COMP_02.RPM", "压缩机 2 转速", "rpm"
+                    ),
+                    _leaf(
+                        "line-a/comp/COMP_02.AMP", "COMP_02.AMP", "压缩机 2 电流", "A"
+                    ),
+                ],
+            ),
+            _folder(
+                "line-a/pump",
+                "水泵",
+                [
+                    _leaf(
+                        "line-a/pump/PUMP_01.FLOW",
+                        "PUMP_01.FLOW",
+                        "水泵 1 流量",
+                        "m³/h",
+                    ),
+                    _leaf(
+                        "line-a/pump/PUMP_01.VIB", "PUMP_01.VIB", "水泵 1 振动", "mm/s"
+                    ),
+                    _leaf(
+                        "line-a/pump/PUMP_02.FLOW",
+                        "PUMP_02.FLOW",
+                        "水泵 2 流量",
+                        "m³/h",
+                    ),
+                ],
+            ),
+        ],
+    )
 
     # ---------- 生产线 B ----------
-    line_b = _folder("line-b", "生产线 B", [
-        _folder("line-b/reactor", "反应釜", [
-            _leaf("line-b/reactor/REACT_01.TEMP",  "REACT_01.TEMP",  "反应釜 1 温度", "°C"),
-            _leaf("line-b/reactor/REACT_01.PRES",  "REACT_01.PRES",  "反应釜 1 压力", "MPa"),
-            _leaf("line-b/reactor/REACT_01.LEVEL", "REACT_01.LEVEL", "反应釜 1 液位", "%"),
-            _leaf("line-b/reactor/REACT_02.TEMP",  "REACT_02.TEMP",  "反应釜 2 温度", "°C"),
-        ]),
-        _folder("line-b/conveyor", "输送带", [
-            _leaf("line-b/conveyor/CONV_01.SPEED",   "CONV_01.SPEED",   "输送带 1 速度", "m/s"),
-            _leaf("line-b/conveyor/CONV_01.RUNNING", "CONV_01.RUNNING", "输送带 1 状态", "",  type_="Digital", data_type="BOOL"),
-            _leaf("line-b/conveyor/CONV_02.SPEED",   "CONV_02.SPEED",   "输送带 2 速度", "m/s"),
-        ]),
-        _folder("line-b/packer", "包装机", [
-            _leaf("line-b/packer/PACK_01.COUNT", "PACK_01.COUNT", "包装数量",   "ea"),
-            _leaf("line-b/packer/PACK_01.ERR",   "PACK_01.ERR",   "错误计数",   "ea"),
-            _leaf("line-b/packer/PACK_01.STATUS","PACK_01.STATUS","包装机状态", "",  type_="Digital", data_type="BOOL"),
-        ]),
-    ])
+    line_b = _folder(
+        "line-b",
+        "生产线 B",
+        [
+            _folder(
+                "line-b/reactor",
+                "反应釜",
+                [
+                    _leaf(
+                        "line-b/reactor/REACT_01.TEMP",
+                        "REACT_01.TEMP",
+                        "反应釜 1 温度",
+                        "°C",
+                    ),
+                    _leaf(
+                        "line-b/reactor/REACT_01.PRES",
+                        "REACT_01.PRES",
+                        "反应釜 1 压力",
+                        "MPa",
+                    ),
+                    _leaf(
+                        "line-b/reactor/REACT_01.LEVEL",
+                        "REACT_01.LEVEL",
+                        "反应釜 1 液位",
+                        "%",
+                    ),
+                    _leaf(
+                        "line-b/reactor/REACT_02.TEMP",
+                        "REACT_02.TEMP",
+                        "反应釜 2 温度",
+                        "°C",
+                    ),
+                ],
+            ),
+            _folder(
+                "line-b/conveyor",
+                "输送带",
+                [
+                    _leaf(
+                        "line-b/conveyor/CONV_01.SPEED",
+                        "CONV_01.SPEED",
+                        "输送带 1 速度",
+                        "m/s",
+                    ),
+                    _leaf(
+                        "line-b/conveyor/CONV_01.RUNNING",
+                        "CONV_01.RUNNING",
+                        "输送带 1 状态",
+                        "",
+                        type_="Digital",
+                        data_type="BOOL",
+                    ),
+                    _leaf(
+                        "line-b/conveyor/CONV_02.SPEED",
+                        "CONV_02.SPEED",
+                        "输送带 2 速度",
+                        "m/s",
+                    ),
+                ],
+            ),
+            _folder(
+                "line-b/packer",
+                "包装机",
+                [
+                    _leaf(
+                        "line-b/packer/PACK_01.COUNT", "PACK_01.COUNT", "包装数量", "ea"
+                    ),
+                    _leaf("line-b/packer/PACK_01.ERR", "PACK_01.ERR", "错误计数", "ea"),
+                    _leaf(
+                        "line-b/packer/PACK_01.STATUS",
+                        "PACK_01.STATUS",
+                        "包装机状态",
+                        "",
+                        type_="Digital",
+                        data_type="BOOL",
+                    ),
+                ],
+            ),
+        ],
+    )
 
     # ---------- 质检系统 ----------
-    qa = _folder("qa", "质检系统", [
-        _folder("qa/visual", "视觉检测", [
-            _leaf("qa/visual/VIS_01.DEFECTS",  "VIS_01.DEFECTS",  "视觉系统 1 缺陷数", "ea"),
-            _leaf("qa/visual/VIS_01.RATE",     "VIS_01.RATE",     "视觉系统 1 合格率", "%"),
-            _leaf("qa/visual/VIS_02.DEFECTS",  "VIS_02.DEFECTS",  "视觉系统 2 缺陷数", "ea"),
-        ]),
-        _folder("qa/weight", "称重", [
-            _leaf("qa/weight/SCALE_01.NET", "SCALE_01.NET", "在线秤 1 净重", "g"),
-            _leaf("qa/weight/SCALE_01.OK",  "SCALE_01.OK",  "在线秤 1 合格", "",  type_="Digital", data_type="BOOL"),
-            _leaf("qa/weight/SCALE_02.NET", "SCALE_02.NET", "在线秤 2 净重", "g"),
-        ]),
-        _folder("qa/chemistry", "化学分析", [
-            _leaf("qa/chemistry/PH_01.VALUE",  "PH_01.VALUE",  "pH 值",         "pH"),
-            _leaf("qa/chemistry/COND_01.VALUE","COND_01.VALUE","电导率",         "µS/cm"),
-            _leaf("qa/chemistry/DO_01.VALUE",  "DO_01.VALUE",  "溶解氧",         "mg/L"),
-        ]),
-    ])
+    qa = _folder(
+        "qa",
+        "质检系统",
+        [
+            _folder(
+                "qa/visual",
+                "视觉检测",
+                [
+                    _leaf(
+                        "qa/visual/VIS_01.DEFECTS",
+                        "VIS_01.DEFECTS",
+                        "视觉系统 1 缺陷数",
+                        "ea",
+                    ),
+                    _leaf(
+                        "qa/visual/VIS_01.RATE", "VIS_01.RATE", "视觉系统 1 合格率", "%"
+                    ),
+                    _leaf(
+                        "qa/visual/VIS_02.DEFECTS",
+                        "VIS_02.DEFECTS",
+                        "视觉系统 2 缺陷数",
+                        "ea",
+                    ),
+                ],
+            ),
+            _folder(
+                "qa/weight",
+                "称重",
+                [
+                    _leaf(
+                        "qa/weight/SCALE_01.NET", "SCALE_01.NET", "在线秤 1 净重", "g"
+                    ),
+                    _leaf(
+                        "qa/weight/SCALE_01.OK",
+                        "SCALE_01.OK",
+                        "在线秤 1 合格",
+                        "",
+                        type_="Digital",
+                        data_type="BOOL",
+                    ),
+                    _leaf(
+                        "qa/weight/SCALE_02.NET", "SCALE_02.NET", "在线秤 2 净重", "g"
+                    ),
+                ],
+            ),
+            _folder(
+                "qa/chemistry",
+                "化学分析",
+                [
+                    _leaf("qa/chemistry/PH_01.VALUE", "PH_01.VALUE", "pH 值", "pH"),
+                    _leaf(
+                        "qa/chemistry/COND_01.VALUE", "COND_01.VALUE", "电导率", "µS/cm"
+                    ),
+                    _leaf("qa/chemistry/DO_01.VALUE", "DO_01.VALUE", "溶解氧", "mg/L"),
+                ],
+            ),
+        ],
+    )
 
     # ---------- 环境监测 ----------
-    env = _folder("env", "环境监测", [
-        _folder("env/air", "空气质量", [
-            _leaf("env/air/PM25.VALUE", "PM25.VALUE", "PM2.5",        "µg/m³"),
-            _leaf("env/air/PM10.VALUE", "PM10.VALUE", "PM10",         "µg/m³"),
-            _leaf("env/air/CO2.VALUE",  "CO2.VALUE",  "二氧化碳浓度",  "ppm"),
-        ]),
-        _folder("env/water", "水质", [
-            _leaf("env/water/TURB.VALUE",  "TURB.VALUE",  "浊度",   "NTU"),
-            _leaf("env/water/COD.VALUE",   "COD.VALUE",   "COD",    "mg/L"),
-            _leaf("env/water/NH3_N.VALUE", "NH3_N.VALUE", "氨氮",   "mg/L"),
-        ]),
-        _folder("env/power", "能耗", [
-            _leaf("env/power/TOTAL_KW.VALUE", "TOTAL_KW.VALUE", "总功率",       "kW"),
-            _leaf("env/power/TOTAL_KWH.VALUE","TOTAL_KWH.VALUE","累计电量",     "kWh"),
-            _leaf("env/power/PF.VALUE",       "PF.VALUE",       "功率因数",     ""),
-        ]),
-    ])
+    env = _folder(
+        "env",
+        "环境监测",
+        [
+            _folder(
+                "env/air",
+                "空气质量",
+                [
+                    _leaf("env/air/PM25.VALUE", "PM25.VALUE", "PM2.5", "µg/m³"),
+                    _leaf("env/air/PM10.VALUE", "PM10.VALUE", "PM10", "µg/m³"),
+                    _leaf("env/air/CO2.VALUE", "CO2.VALUE", "二氧化碳浓度", "ppm"),
+                ],
+            ),
+            _folder(
+                "env/water",
+                "水质",
+                [
+                    _leaf("env/water/TURB.VALUE", "TURB.VALUE", "浊度", "NTU"),
+                    _leaf("env/water/COD.VALUE", "COD.VALUE", "COD", "mg/L"),
+                    _leaf("env/water/NH3_N.VALUE", "NH3_N.VALUE", "氨氮", "mg/L"),
+                ],
+            ),
+            _folder(
+                "env/power",
+                "能耗",
+                [
+                    _leaf("env/power/TOTAL_KW.VALUE", "TOTAL_KW.VALUE", "总功率", "kW"),
+                    _leaf(
+                        "env/power/TOTAL_KWH.VALUE",
+                        "TOTAL_KWH.VALUE",
+                        "累计电量",
+                        "kWh",
+                    ),
+                    _leaf("env/power/PF.VALUE", "PF.VALUE", "功率因数", ""),
+                ],
+            ),
+        ],
+    )
 
     tree.extend([line_a, line_b, qa, env])
     return tree
 
 
 # Flatten helpers — computed lazily.
+
 
 def _leaves(nodes: list[dict]) -> list[dict]:
     out: list[dict] = []
@@ -162,10 +354,38 @@ def _find_node(nodes: list[dict], node_id: str) -> dict | None:
 # ---------- static server list ----------
 
 MOCK_SERVERS = [
-    {"id": "ifix-prod", "name": "iFix — 生产线 A",  "type": "iFix",    "host": "192.168.10.21", "version": "iFix 6.5",        "tagCount": 12840},
-    {"id": "ifix-qa",   "name": "iFix — 质检区",    "type": "iFix",    "host": "192.168.10.22", "version": "iFix 6.1",        "tagCount": 3420},
-    {"id": "intouch-a", "name": "InTouch — 车间 1", "type": "InTouch", "host": "192.168.20.11", "version": "InTouch 2020 R2", "tagCount": 8905},
-    {"id": "intouch-b", "name": "InTouch — 车间 2", "type": "InTouch", "host": "192.168.20.12", "version": "InTouch 2017",    "tagCount": 6120},
+    {
+        "id": "ifix-prod",
+        "name": "iFix — 生产线 A",
+        "type": "iFix",
+        "host": "192.168.10.21",
+        "version": "iFix 6.5",
+        "tagCount": 12840,
+    },
+    {
+        "id": "ifix-qa",
+        "name": "iFix — 质检区",
+        "type": "iFix",
+        "host": "192.168.10.22",
+        "version": "iFix 6.1",
+        "tagCount": 3420,
+    },
+    {
+        "id": "intouch-a",
+        "name": "InTouch — 车间 1",
+        "type": "InTouch",
+        "host": "192.168.20.11",
+        "version": "InTouch 2020 R2",
+        "tagCount": 8905,
+    },
+    {
+        "id": "intouch-b",
+        "name": "InTouch — 车间 2",
+        "type": "InTouch",
+        "host": "192.168.20.12",
+        "version": "InTouch 2017",
+        "tagCount": 6120,
+    },
 ]
 
 
@@ -197,7 +417,9 @@ class MockAdapter:
 
     # ---------- tag tree ----------
 
-    async def list_tag_tree(self, path: str | None = None, depth: int = 1) -> list[dict]:
+    async def list_tag_tree(
+        self, path: str | None = None, depth: int = 1
+    ) -> list[dict]:
         if not path:
             return [self._node_summary(n, depth) for n in self._TREE]
         node = _find_node(self._TREE, path)
@@ -274,9 +496,12 @@ class MockAdapter:
         t = ts.timestamp()
         base = 400 + (seed % 50)
         amp = 3 + (seed % 7)
-        val = base + math.sin(t / (900 + (seed % 60))) * amp \
-              + math.cos(t / 300) * (amp * 0.4) \
-              + (((seed * int(t)) % 7) - 3) * 0.05  # pseudo-noise, deterministic
+        val = (
+            base
+            + math.sin(t / (900 + (seed % 60))) * amp
+            + math.cos(t / 300) * (amp * 0.4)
+            + (((seed * int(t)) % 7) - 3) * 0.05
+        )  # pseudo-noise, deterministic
         return round(val, 3)
 
     def _quality_for(self, tag_id: str, ts: datetime) -> str:
@@ -339,7 +564,9 @@ class MockAdapter:
             if leaf is None:
                 tag_summaries.append({"id": tid, "label": tid})
             else:
-                tag_summaries.append({"id": tid, "label": leaf["label"], "unit": leaf.get("unit", "")})
+                tag_summaries.append(
+                    {"id": tid, "label": leaf["label"], "unit": leaf.get("unit", "")}
+                )
 
         return {
             "times": times,

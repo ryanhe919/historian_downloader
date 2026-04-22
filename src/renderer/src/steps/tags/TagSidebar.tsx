@@ -174,10 +174,7 @@ export function TagSidebar(): React.JSX.Element {
     { enabled: !!serverId }
   )
 
-  const roots = useMemo<NestedTagNode[]>(
-    () => (data ?? []) as unknown as NestedTagNode[],
-    [data]
-  )
+  const roots = useMemo<NestedTagNode[]>(() => (data ?? []) as unknown as NestedTagNode[], [data])
 
   const leafIndex = useMemo(() => collectLeafIndex(roots), [roots])
   const filtered = useMemo(

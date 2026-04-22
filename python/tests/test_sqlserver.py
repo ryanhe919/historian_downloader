@@ -24,7 +24,6 @@ from adapters.sqlserver import (
     _classify_tag_type,
 )
 
-
 # ---------------------------------------------------------------------------
 # Pure helpers.
 # ---------------------------------------------------------------------------
@@ -83,8 +82,9 @@ def patched_pymssql():
     """Ensure the adapter believes pymssql is installed, even if it isn't."""
     fake_module = types.ModuleType("pymssql")
     fake_module.connect = MagicMock()
-    with patch.object(sqlserver, "pymssql", fake_module), \
-         patch.object(sqlserver, "_HAS_PYMSSQL", True):
+    with patch.object(sqlserver, "pymssql", fake_module), patch.object(
+        sqlserver, "_HAS_PYMSSQL", True
+    ):
         yield fake_module
 
 
@@ -141,10 +141,17 @@ async def test_test_connection_uses_top1_and_count(patched_pymssql):
 
     patched_pymssql.connect.return_value = conn
 
-    adapter = SqlServerAdapter({
-        "id": "s1", "type": "InTouch", "host": "1.2.3.4", "port": 1433,
-        "username": "sa", "password": "pw", "timeoutS": 5,
-    })
+    adapter = SqlServerAdapter(
+        {
+            "id": "s1",
+            "type": "InTouch",
+            "host": "1.2.3.4",
+            "port": 1433,
+            "username": "sa",
+            "password": "pw",
+            "timeoutS": 5,
+        }
+    )
     res = await adapter.test_connection()
     assert res["ok"] is True
     assert res["tagCount"] == 1234
@@ -207,6 +214,7 @@ async def test_get_tag_meta_missing_raises(patched_pymssql):
     patched_pymssql.connect.return_value = conn
     adapter = SqlServerAdapter({"id": "s1", "host": "h", "port": 1433, "timeoutS": 5})
     from rpc.errors import TagNotFoundError
+
     with pytest.raises(TagNotFoundError):
         await adapter.get_tag_meta("nope")
 

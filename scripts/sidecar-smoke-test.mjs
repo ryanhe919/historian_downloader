@@ -105,6 +105,12 @@ const timer = setTimeout(
   timeoutMs
 )
 
+/**
+ * @param {boolean} ok
+ * @param {string | undefined} reason
+ * @returns {void}
+ */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function finish(ok, reason) {
   if (finished) return
   finished = true

@@ -17,7 +17,7 @@ import { useSettings } from '@/hooks/useSettings'
  * Our own CSS variables live on `<html data-theme>` and are controlled
  * separately by `useSettingsSideEffects` inside App.
  */
-function Themed({ children }: { children: React.ReactNode }): React.JSX.Element {
+export function Themed({ children }: { children: React.ReactNode }): React.JSX.Element {
   const theme = useSettings((s) => s.theme)
   return (
     <ConfigProvider>

@@ -49,9 +49,11 @@ async def test_request_response_roundtrip():
     async def echo(params):
         return {"you_said": params}
 
-    stdin = await _make_stdin([
-        '{"jsonrpc":"2.0","id":1,"method":"echo","params":{"msg":"hi"}}\n',
-    ])
+    stdin = await _make_stdin(
+        [
+            '{"jsonrpc":"2.0","id":1,"method":"echo","params":{"msg":"hi"}}\n',
+        ]
+    )
     stdout = _FakeStdout()
     transport = LineTransport(dispatcher.handle, stdin=stdin, stdout=stdout)
 

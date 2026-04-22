@@ -29,11 +29,14 @@ def storage(tmp_path):
 def mock_factory():
     def _factory(server):
         return MockAdapter(server)
+
     return _factory
 
 
 @pytest.mark.asyncio
-async def test_export_happy_path_writes_csv_and_history(storage, mock_factory, tmp_path):
+async def test_export_happy_path_writes_csv_and_history(
+    storage, mock_factory, tmp_path
+):
     events: list = []
 
     async def emit(method, params):
@@ -52,18 +55,20 @@ async def test_export_happy_path_writes_csv_and_history(storage, mock_factory, t
     start = datetime(2026, 4, 21, 8, 0, 0, tzinfo=timezone.utc)
     end = start + timedelta(minutes=2)
 
-    task = storage.create_task({
-        "serverId": "mock-1",
-        "name": "test_job",
-        "tagIds": ["line-a/boiler/BOILER_01.TEMP", "line-a/boiler/BOILER_01.PRES"],
-        "range": {"start": format_iso(start), "end": format_iso(end)},
-        "sampling": "raw",
-        "segmentDays": 1,
-        "format": "CSV",
-        "outputDir": str(out_dir),
-        "totalSegments": 1,
-        "status": "queued",
-    })
+    task = storage.create_task(
+        {
+            "serverId": "mock-1",
+            "name": "test_job",
+            "tagIds": ["line-a/boiler/BOILER_01.TEMP", "line-a/boiler/BOILER_01.PRES"],
+            "range": {"start": format_iso(start), "end": format_iso(end)},
+            "sampling": "raw",
+            "segmentDays": 1,
+            "format": "CSV",
+            "outputDir": str(out_dir),
+            "totalSegments": 1,
+            "status": "queued",
+        }
+    )
 
     queue.start()
     await queue.enqueue(task["id"])
@@ -117,18 +122,20 @@ async def test_cancel_queued_task_marks_cancelled(storage, mock_factory, tmp_pat
     out_dir = tmp_path / "out"
     out_dir.mkdir()
 
-    task = storage.create_task({
-        "serverId": "mock-1",
-        "name": "cancel_me",
-        "tagIds": ["line-a/boiler/BOILER_01.TEMP"],
-        "range": {"start": _iso(2026, 4, 21, 8), "end": _iso(2026, 4, 21, 9)},
-        "sampling": "raw",
-        "segmentDays": 1,
-        "format": "CSV",
-        "outputDir": str(out_dir),
-        "totalSegments": 1,
-        "status": "queued",
-    })
+    task = storage.create_task(
+        {
+            "serverId": "mock-1",
+            "name": "cancel_me",
+            "tagIds": ["line-a/boiler/BOILER_01.TEMP"],
+            "range": {"start": _iso(2026, 4, 21, 8), "end": _iso(2026, 4, 21, 9)},
+            "sampling": "raw",
+            "segmentDays": 1,
+            "format": "CSV",
+            "outputDir": str(out_dir),
+            "totalSegments": 1,
+            "status": "queued",
+        }
+    )
     # Cancel without ever starting the worker.
     result = await queue.cancel(task["id"])
     assert result["status"] == "cancelled"
@@ -150,18 +157,20 @@ async def test_json_format_writes_jsonl(storage, mock_factory, tmp_path):
 
     start = datetime(2026, 4, 21, 8, 0, 0, tzinfo=timezone.utc)
     end = start + timedelta(seconds=30)  # 6 rows
-    task = storage.create_task({
-        "serverId": "mock-1",
-        "name": "jsonl_job",
-        "tagIds": ["line-a/boiler/BOILER_01.TEMP"],
-        "range": {"start": format_iso(start), "end": format_iso(end)},
-        "sampling": "raw",
-        "segmentDays": 1,
-        "format": "JSON",
-        "outputDir": str(out_dir),
-        "totalSegments": 1,
-        "status": "queued",
-    })
+    task = storage.create_task(
+        {
+            "serverId": "mock-1",
+            "name": "jsonl_job",
+            "tagIds": ["line-a/boiler/BOILER_01.TEMP"],
+            "range": {"start": format_iso(start), "end": format_iso(end)},
+            "sampling": "raw",
+            "segmentDays": 1,
+            "format": "JSON",
+            "outputDir": str(out_dir),
+            "totalSegments": 1,
+            "status": "queued",
+        }
+    )
     queue.start()
     await queue.enqueue(task["id"])
     for _ in range(100):
@@ -178,5 +187,6 @@ async def test_json_format_writes_jsonl(storage, mock_factory, tmp_path):
     lines = out_path.read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 6
     import json as _json
+
     first = _json.loads(lines[0])
     assert "time" in first and "values" in first

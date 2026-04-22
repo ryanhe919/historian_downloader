@@ -8,7 +8,6 @@ import logging
 import sys
 from typing import Awaitable, Callable
 
-
 log = logging.getLogger(__name__)
 
 MAX_LINE_BYTES = 1 * 1024 * 1024  # 1 MiB per protocol §0.1
@@ -53,7 +52,11 @@ class LineTransport:
                 log.info("stdin closed (EOF); transport loop exiting")
                 return
             if len(line) > MAX_LINE_BYTES:
-                log.warning("dropping stdin line of %d bytes (> %d MiB limit)", len(line), MAX_LINE_BYTES)
+                log.warning(
+                    "dropping stdin line of %d bytes (> %d MiB limit)",
+                    len(line),
+                    MAX_LINE_BYTES,
+                )
                 continue
             text = line.decode("utf-8", errors="replace").rstrip("\r\n")
             if not text.strip():
@@ -68,8 +71,12 @@ class LineTransport:
         line = payload + "\n"
         raw = line.encode("utf-8")
         if len(raw) > MAX_LINE_BYTES:
-            log.error("refusing to write %d-byte line (> 1 MiB limit); id=%s method=%s",
-                      len(raw), message.get("id"), message.get("method"))
+            log.error(
+                "refusing to write %d-byte line (> 1 MiB limit); id=%s method=%s",
+                len(raw),
+                message.get("id"),
+                message.get("method"),
+            )
             return
         async with self._write_lock:
             # stdout is a blocking text stream; writing is fast but we still want to

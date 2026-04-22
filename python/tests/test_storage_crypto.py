@@ -30,10 +30,14 @@ def _raw_password_enc(db_path, server_id):
 
 
 def test_save_server_writes_aesgcm_blob(tmp_path, storage):
-    s = storage.save_server({
-        "name": "iFix-crypt", "type": "iFix", "host": "10.0.0.9",
-        "password": "secret-value",
-    })
+    s = storage.save_server(
+        {
+            "name": "iFix-crypt",
+            "type": "iFix",
+            "host": "10.0.0.9",
+            "password": "secret-value",
+        }
+    )
     raw = _raw_password_enc(storage._path, s["id"])
     assert raw is not None
     assert raw.startswith(AES_SCHEME), f"password_enc must be AES-GCM, got {raw!r}"
@@ -46,10 +50,14 @@ def test_save_server_writes_aesgcm_blob(tmp_path, storage):
 
 
 def test_legacy_b64_record_still_reads_and_upgrades(tmp_path, storage):
-    s = storage.save_server({
-        "name": "legacy", "type": "iFix", "host": "10.0.0.7",
-        "password": "placeholder",  # we overwrite below
-    })
+    s = storage.save_server(
+        {
+            "name": "legacy",
+            "type": "iFix",
+            "host": "10.0.0.7",
+            "password": "placeholder",  # we overwrite below
+        }
+    )
     sid = s["id"]
 
     # Forcibly rewrite password_enc to the legacy b64: format to emulate
@@ -65,23 +73,37 @@ def test_legacy_b64_record_still_reads_and_upgrades(tmp_path, storage):
 
     # The on-disk value should now have been upgraded to aesgcm: form.
     raw = _raw_password_enc(storage._path, sid)
-    assert raw.startswith(AES_SCHEME), "legacy password must be re-encrypted on first read"
+    assert raw.startswith(
+        AES_SCHEME
+    ), "legacy password must be re-encrypted on first read"
     assert storage.get_server_password(sid) == "legacy-pw"
 
 
 def test_update_without_password_preserves_aesgcm(storage):
-    s = storage.save_server({
-        "name": "n1", "type": "iFix", "host": "1.1.1.1", "password": "keep-me",
-    })
+    s = storage.save_server(
+        {
+            "name": "n1",
+            "type": "iFix",
+            "host": "1.1.1.1",
+            "password": "keep-me",
+        }
+    )
     sid = s["id"]
-    storage.save_server({"name": "n1-renamed", "type": "iFix", "host": "1.1.1.1"}, server_id=sid)
+    storage.save_server(
+        {"name": "n1-renamed", "type": "iFix", "host": "1.1.1.1"}, server_id=sid
+    )
     assert storage.get_server_password(sid) == "keep-me"
     raw = _raw_password_enc(storage._path, sid)
     assert raw.startswith(AES_SCHEME)
 
 
 def test_has_password_flag_is_true_after_encryption(storage):
-    s = storage.save_server({
-        "name": "has-pw", "type": "iFix", "host": "1.2.3.4", "password": "pw",
-    })
+    s = storage.save_server(
+        {
+            "name": "has-pw",
+            "type": "iFix",
+            "host": "1.2.3.4",
+            "password": "pw",
+        }
+    )
     assert s["hasPassword"] is True

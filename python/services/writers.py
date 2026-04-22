@@ -12,13 +12,13 @@ from pathlib import Path
 
 from rpc import errors
 
-
 log = logging.getLogger(__name__)
 
 
 # Optional openpyxl import — only required if the user picks Excel.
 try:
     import openpyxl  # type: ignore
+
     _HAS_OPENPYXL = True
 except ImportError:  # pragma: no cover
     openpyxl = None  # type: ignore[assignment]

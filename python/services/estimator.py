@@ -6,7 +6,6 @@ from datetime import datetime
 
 from util.time import sampling_seconds
 
-
 # Bytes per row (average) for each format — derived from empirical CSV/JSON runs.
 _BYTES_PER_ROW_PER_TAG: dict[str, int] = {
     "CSV": 22,

@@ -19,7 +19,6 @@ import sys
 import uuid
 from pathlib import Path
 
-
 log = logging.getLogger(__name__)
 
 _CACHE: str | None = None
@@ -85,6 +84,7 @@ def _fallback_random(user_data_dir: Path | None = None) -> str:
     if user_data_dir is None:
         # Defer import to avoid circulars.
         from util.paths import user_data_dir as _udir
+
         user_data_dir = _udir()
     path = Path(user_data_dir) / ".machine-id"
     try:
@@ -99,7 +99,9 @@ def _fallback_random(user_data_dir: Path | None = None) -> str:
         path.write_text(new_id, encoding="utf-8")
         log.info("machine-id: generated new random id at %s", path)
     except OSError as exc:
-        log.warning("machine-id: failed to persist fallback id (%s); using ephemeral", exc)
+        log.warning(
+            "machine-id: failed to persist fallback id (%s); using ephemeral", exc
+        )
     return new_id
 
 

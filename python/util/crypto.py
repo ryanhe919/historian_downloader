@@ -22,7 +22,6 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from util.machine_id import get_machine_id
 
-
 log = logging.getLogger(__name__)
 
 
@@ -77,7 +76,7 @@ def decrypt_password(enc: str, machine_id: Optional[str] = None) -> str:
     if not enc.startswith(SCHEME):
         raise ValueError("not an aesgcm blob")
     try:
-        raw = base64.b64decode(enc[len(SCHEME):].encode("ascii"), validate=True)
+        raw = base64.b64decode(enc[len(SCHEME) :].encode("ascii"), validate=True)
     except (ValueError, TypeError) as exc:
         raise ValueError(f"invalid base64 payload: {exc}") from exc
     if len(raw) < NONCE_LEN + 16:

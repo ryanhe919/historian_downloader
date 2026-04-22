@@ -7,11 +7,12 @@ import os
 import sys
 from pathlib import Path
 
-
 _configured = False
 
 
-def configure_logging_to_stderr(level: int | str = logging.INFO, log_file: str | Path | None = None) -> None:
+def configure_logging_to_stderr(
+    level: int | str = logging.INFO, log_file: str | Path | None = None
+) -> None:
     """Configure the root logger to emit to stderr and optionally a file.
 
     Idempotent — safe to call multiple times (subsequent calls are no-ops).

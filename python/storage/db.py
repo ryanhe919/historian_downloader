@@ -17,9 +17,13 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from util.crypto import SCHEME as AES_SCHEME, decrypt_password, encrypt_password, is_encrypted
+from util.crypto import (
+    SCHEME as AES_SCHEME,
+    decrypt_password,
+    encrypt_password,
+    is_encrypted,
+)
 from util.time import iso_now
-
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +74,9 @@ class Storage:
                     raise RuntimeError(f"missing migration: {sql_path}")
                 sql = sql_path.read_text(encoding="utf-8")
                 self._conn.executescript(sql)
-                log.info("storage: migrated to schema v%d at %s", SCHEMA_VERSION, self._path)
+                log.info(
+                    "storage: migrated to schema v%d at %s", SCHEMA_VERSION, self._path
+                )
 
     def close(self) -> None:
         with self._lock:
@@ -134,7 +140,9 @@ class Storage:
                 )
             else:
                 # Keep existing password if not provided in update.
-                new_pw = password_enc if password is not None else existing["password_enc"]
+                new_pw = (
+                    password_enc if password is not None else existing["password_enc"]
+                )
                 self._conn.execute(
                     """
                     UPDATE servers SET
@@ -151,7 +159,11 @@ class Storage:
                         new_pw,
                         int(server.get("timeoutS", existing["timeout_s"] or 15)),
                         1 if server.get("tls", bool(existing["tls"])) else 0,
-                        1 if server.get("windowsAuth", bool(existing["windows_auth"])) else 0,
+                        (
+                            1
+                            if server.get("windowsAuth", bool(existing["windows_auth"]))
+                            else 0
+                        ),
                         json.dumps(server.get("extra") or {}, ensure_ascii=False),
                         now,
                         sid,
@@ -175,9 +187,7 @@ class Storage:
 
     def delete_server(self, server_id: str) -> bool:
         with self._lock:
-            cur = self._conn.execute(
-                "DELETE FROM servers WHERE id = ?", (server_id,)
-            )
+            cur = self._conn.execute("DELETE FROM servers WHERE id = ?", (server_id,))
         return cur.rowcount > 0
 
     def get_server_password(self, server_id: str) -> str | None:
@@ -202,7 +212,9 @@ class Storage:
                     )
                 log.info("password_enc: upgraded server %s to AES-GCM", server_id)
             except Exception as exc:  # pragma: no cover — best-effort
-                log.warning("password_enc: failed to upgrade server %s: %s", server_id, exc)
+                log.warning(
+                    "password_enc: failed to upgrade server %s: %s", server_id, exc
+                )
         return plain
 
     # ---------- tasks ----------
@@ -312,8 +324,15 @@ class Storage:
             ).fetchone()
         return _task_row_to_dict(row) if row else None
 
-    def complete_task(self, task_id: str, *, status: str, error: str | None = None) -> dict | None:
-        return self.update_task(task_id, status=status, error=error, progress=100 if status == "done" else None)
+    def complete_task(
+        self, task_id: str, *, status: str, error: str | None = None
+    ) -> dict | None:
+        return self.update_task(
+            task_id,
+            status=status,
+            error=error,
+            progress=100 if status == "done" else None,
+        )
 
     # ---------- history ----------
 
@@ -377,9 +396,7 @@ class Storage:
 
     def remove_history(self, history_id: str) -> bool:
         with self._lock:
-            cur = self._conn.execute(
-                "DELETE FROM history WHERE id = ?", (history_id,)
-            )
+            cur = self._conn.execute("DELETE FROM history WHERE id = ?", (history_id,))
         return cur.rowcount > 0
 
 
@@ -408,8 +425,10 @@ def _decode_password(enc: str) -> str:
         try:
             return decrypt_password(enc)
         except ValueError:
-            log.warning("password_enc: AES-GCM decrypt failed; "
-                        "machine-id may have changed — treating as plaintext")
+            log.warning(
+                "password_enc: AES-GCM decrypt failed; "
+                "machine-id may have changed — treating as plaintext"
+            )
             return enc
     if enc.startswith("b64:"):
         try:

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
-
 # ---------- domain types ----------
 
 HistorianType = Literal["iFix", "InTouch"]

@@ -20,17 +20,19 @@ def test_migration_creates_schema_version(storage):
 
 
 def test_server_crud_roundtrip(storage):
-    s = storage.save_server({
-        "name": "iFix Prod",
-        "type": "iFix",
-        "host": "10.0.0.1",
-        "port": 1433,
-        "username": "admin",
-        "password": "s3cret",
-        "timeoutS": 20,
-        "tls": True,
-        "windowsAuth": False,
-    })
+    s = storage.save_server(
+        {
+            "name": "iFix Prod",
+            "type": "iFix",
+            "host": "10.0.0.1",
+            "port": 1433,
+            "username": "admin",
+            "password": "s3cret",
+            "timeoutS": 20,
+            "tls": True,
+            "windowsAuth": False,
+        }
+    )
     assert s["id"]
     assert s["hasPassword"] is True
     assert s["tls"] is True
@@ -43,7 +45,9 @@ def test_server_crud_roundtrip(storage):
     assert storage.get_server_password(s["id"]) == "s3cret"
 
     # update without changing password preserves encrypted value
-    updated = storage.save_server({"name": "iFix Prod 2", "type": "iFix", "host": "10.0.0.2"}, server_id=s["id"])
+    updated = storage.save_server(
+        {"name": "iFix Prod 2", "type": "iFix", "host": "10.0.0.2"}, server_id=s["id"]
+    )
     assert updated["name"] == "iFix Prod 2"
     assert updated["hasPassword"] is True
     assert storage.get_server_password(s["id"]) == "s3cret"
@@ -53,17 +57,22 @@ def test_server_crud_roundtrip(storage):
 
 
 def test_task_crud_and_update(storage):
-    t = storage.create_task({
-        "serverId": "srv-1",
-        "name": "job-a",
-        "tagIds": ["a", "b"],
-        "range": {"start": "2026-04-01T00:00:00.000Z", "end": "2026-04-02T00:00:00.000Z"},
-        "sampling": "1m",
-        "segmentDays": 1,
-        "format": "CSV",
-        "outputDir": "/tmp/out",
-        "totalSegments": 1,
-    })
+    t = storage.create_task(
+        {
+            "serverId": "srv-1",
+            "name": "job-a",
+            "tagIds": ["a", "b"],
+            "range": {
+                "start": "2026-04-01T00:00:00.000Z",
+                "end": "2026-04-02T00:00:00.000Z",
+            },
+            "sampling": "1m",
+            "segmentDays": 1,
+            "format": "CSV",
+            "outputDir": "/tmp/out",
+            "totalSegments": 1,
+        }
+    )
     assert t["status"] == "queued"
     assert t["tagIds"] == ["a", "b"]
     assert t["tagCount"] == 2
@@ -76,15 +85,20 @@ def test_task_crud_and_update(storage):
 
 def test_history_list_with_query_and_pagination(storage):
     for i in range(5):
-        storage.add_history({
-            "name": f"job_{i}.csv",
-            "path": f"/tmp/job_{i}.csv",
-            "tagCount": 2,
-            "rows": 1000 + i,
-            "sizeBytes": 2000 + i,
-            "range": {"start": "2026-04-01T00:00:00.000Z", "end": "2026-04-02T00:00:00.000Z"},
-            "format": "CSV",
-        })
+        storage.add_history(
+            {
+                "name": f"job_{i}.csv",
+                "path": f"/tmp/job_{i}.csv",
+                "tagCount": 2,
+                "rows": 1000 + i,
+                "sizeBytes": 2000 + i,
+                "range": {
+                    "start": "2026-04-01T00:00:00.000Z",
+                    "end": "2026-04-02T00:00:00.000Z",
+                },
+                "format": "CSV",
+            }
+        )
     items, total = storage.list_history(limit=3, offset=0)
     assert total == 5
     assert len(items) == 3

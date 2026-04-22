@@ -162,7 +162,7 @@ export function SelectedPanel(): React.JSX.Element {
             <Icon name="tag" size={36} />
             <div>尚未选择标签</div>
             <div style={{ fontSize: 11, marginTop: 4 }}>
-              从左侧列表中勾选，或点击右上角"手动添加"粘贴标签名
+              从左侧列表中勾选，或点击右上角“手动添加”粘贴标签名
             </div>
           </div>
         ) : (
@@ -312,11 +312,7 @@ export function SelectedPanel(): React.JSX.Element {
           >
             取消
           </Button>
-          <Button
-            color="primary"
-            onClick={handleAddSubmit}
-            disabled={newCount === 0}
-          >
+          <Button color="primary" onClick={handleAddSubmit} disabled={newCount === 0}>
             添加 {newCount > 0 ? newCount : ''}
           </Button>
         </ModalFooter>

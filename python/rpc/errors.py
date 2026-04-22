@@ -6,7 +6,6 @@ See ``docs/rpc-contract.md`` §0.3.
 
 from __future__ import annotations
 
-
 # JSON-RPC 2.0 reserved codes
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600

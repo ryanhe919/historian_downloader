@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hd-sidecar"
-version = "0.1.0"
+version = "0.2.1"
 description = "Historian Downloader Python sidecar (JSON-RPC 2.0 over stdio)"
 requires-python = ">=3.10"
 authors = [{ name = "Historian Downloader Team" }]
@@ -28,4 +28,9 @@ packages = ["rpc", "adapters", "services", "storage", "util"]
 testpaths = ["tests"]
 markers = [
   "asyncio: run this async test function via asyncio.run()",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.3.1",
 ]

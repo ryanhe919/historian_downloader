@@ -20,12 +20,12 @@ from util.time import sampling_seconds
 
 from .base import BaseHistorianAdapter
 
-
 log = logging.getLogger(__name__)
 
 
 try:
     import pymssql  # type: ignore
+
     _HAS_PYMSSQL = True
 except Exception as _exc:
     pymssql = None  # type: ignore
@@ -36,6 +36,7 @@ except Exception as _exc:
 # ---------------------------------------------------------------------------
 # Utilities
 # ---------------------------------------------------------------------------
+
 
 def _quote(v: str) -> str:
     return str(v).replace("'", "''")
@@ -54,13 +55,13 @@ def build_openquery_sql(tag: str, start: str, end: str, interval_ms: int) -> str
     """
     return (
         "SET QUOTED_IDENTIFIER OFF "
-        "SELECT * FROM OpenQuery(INSQL, \" "
+        'SELECT * FROM OpenQuery(INSQL, " '
         "SELECT DateTime, TagName, Value FROM History "
         "WHERE wwVersion = 'Latest' AND wwRetrievalMode = 'Cyclic' "
         f"AND wwResolution = {int(interval_ms)} "
         f"AND DateTime >= '{_quote(start)}' AND DateTime <= '{_quote(end)}' "
         f"AND History.TagName IN ('{_quote(tag)}') "
-        "\")"
+        '")'
     )
 
 
@@ -128,7 +129,9 @@ class SqlServerAdapter(BaseHistorianAdapter):
                 conn.close()
 
         try:
-            count = await asyncio.wait_for(loop.run_in_executor(None, _probe), timeout=timeout_s)
+            count = await asyncio.wait_for(
+                loop.run_in_executor(None, _probe), timeout=timeout_s
+            )
         except asyncio.TimeoutError as exc:
             raise errors.ConnectionTimeoutError(timeout_s) from exc
         latency_ms = int((_time.monotonic() - t0) * 1000)
@@ -141,7 +144,9 @@ class SqlServerAdapter(BaseHistorianAdapter):
 
     # ---- list_tag_tree ----
 
-    async def list_tag_tree(self, path: str | None = None, depth: int = 1) -> list[dict]:
+    async def list_tag_tree(
+        self, path: str | None = None, depth: int = 1
+    ) -> list[dict]:
         loop = asyncio.get_running_loop()
         prefix = (path or "").strip()
 
@@ -232,17 +237,19 @@ class SqlServerAdapter(BaseHistorianAdapter):
             type_ = _classify_tag_type(tagtype)
             if filter_type in ("Analog", "Digital") and type_ != filter_type:
                 continue
-            items.append({
-                "id": tagname,
-                "label": tagname,
-                "kind": "leaf",
-                "desc": desc or "",
-                "unit": unit or "",
-                "type": type_,
-                "dataType": str(tagtype) if tagtype is not None else "",
-            })
+            items.append(
+                {
+                    "id": tagname,
+                    "label": tagname,
+                    "kind": "leaf",
+                    "desc": desc or "",
+                    "unit": unit or "",
+                    "type": type_,
+                    "dataType": str(tagtype) if tagtype is not None else "",
+                }
+            )
         total = len(items)
-        return {"items": items[offset: offset + limit], "total": total}
+        return {"items": items[offset : offset + limit], "total": total}
 
     # ---- get_tag_meta ----
 
@@ -362,8 +369,10 @@ class SqlServerAdapter(BaseHistorianAdapter):
             yield {
                 "time": ts,
                 "values": [per_tag.get(t, {}).get(ts) for t in tag_ids],
-                "quality": ["Good" if per_tag.get(t, {}).get(ts) is not None else "Bad"
-                            for t in tag_ids],
+                "quality": [
+                    "Good" if per_tag.get(t, {}).get(ts) is not None else "Bad"
+                    for t in tag_ids
+                ],
             }
 
     # ---- preview_sample ----
@@ -431,6 +440,7 @@ def _build_tree_level(tag_names: list[str], prefix: str, depth: int) -> list[dic
     Wonderware tagnames typically use ``.`` (``AREA.EQUIP.ATTR``) but older
     InTouch exports use ``_`` — treat both as separators so either works.
     """
+
     # Normalise separators to '.' for grouping purposes but keep IDs intact.
     def parts_of(name: str) -> list[str]:
         s = name.replace("_", ".")

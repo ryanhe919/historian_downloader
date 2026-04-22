@@ -8,7 +8,6 @@ import pytest
 
 from services.segmenter import split_segments
 
-
 UTC = timezone.utc
 
 
