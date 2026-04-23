@@ -205,8 +205,8 @@ select {
   color: var(--c-primary-fg);
 }
 .step.done .step-idx {
-  background: rgba(23, 201, 100, 0.18);
-  color: #0e7b42;
+  background: var(--tint-success-weak);
+  color: var(--fg-success-strong);
 }
 .step-info {
   line-height: 1.25;
@@ -253,7 +253,7 @@ select {
   height: 6px;
   border-radius: 50%;
   background: var(--c-success);
-  box-shadow: 0 0 0 3px rgba(23, 201, 100, 0.18);
+  box-shadow: 0 0 0 3px var(--tint-success-weak);
   animation: pulse 2s infinite;
 }
 .env-chip[data-state='disconnected'] .live-dot {
@@ -277,10 +277,10 @@ select {
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 3px rgba(23, 201, 100, 0.18);
+    box-shadow: 0 0 0 3px var(--tint-success-weak);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(23, 201, 100, 0.08);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--c-success) 10%, transparent);
   }
 }
 
@@ -395,7 +395,7 @@ select {
   color: var(--c-primary-fg);
 }
 .btn-primary:hover {
-  background: rgba(0, 111, 238, 0.9);
+  background: color-mix(in srgb, var(--c-primary) 90%, black 10%);
 }
 .btn-default {
   background: var(--gray-100);
@@ -406,10 +406,10 @@ select {
 }
 .btn-light {
   background: transparent;
-  color: #0055b8;
+  color: var(--fg-primary-strong);
 }
 .btn-light:hover {
-  background: rgba(0, 111, 238, 0.1);
+  background: var(--tint-primary-weak);
 }
 .btn-bordered {
   background: transparent;
@@ -425,7 +425,7 @@ select {
   color: var(--c-danger-fg);
 }
 .btn-danger:hover {
-  background: rgba(201, 12, 80, 0.9);
+  background: color-mix(in srgb, var(--c-danger) 90%, black 10%);
 }
 .btn-sm {
   height: 28px;
@@ -497,7 +497,7 @@ select {
 }
 .field:focus-within {
   border-color: var(--c-primary);
-  box-shadow: 0 0 0 3px rgba(0, 111, 238, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-primary) 18%, transparent);
 }
 .field input,
 .field select,
@@ -543,28 +543,28 @@ select {
   background: currentColor;
 }
 .tag-success {
-  background: rgba(23, 201, 100, 0.18);
-  color: #0e7b42;
+  background: var(--tint-success-weak);
+  color: var(--fg-success-strong);
 }
 .tag-warning {
-  background: rgba(245, 165, 36, 0.2);
-  color: #a8680b;
+  background: var(--tint-warning-weak);
+  color: var(--fg-warning-strong);
 }
 .tag-danger {
-  background: rgba(201, 12, 80, 0.18);
-  color: #9a0a44;
+  background: var(--tint-danger-weak);
+  color: var(--fg-danger-strong);
 }
 .tag-default {
   background: var(--gray-100);
   color: var(--fg2);
 }
 .tag-primary {
-  background: rgba(0, 111, 238, 0.12);
-  color: #0055b8;
+  background: var(--tint-primary-weak);
+  color: var(--fg-primary-strong);
 }
 .tag-purple {
-  background: rgba(120, 40, 200, 0.15);
-  color: #5b1f9c;
+  background: var(--tint-secondary-weak);
+  color: var(--fg-secondary-strong);
 }
 
 /* ---- Tabs ---- */
@@ -633,7 +633,7 @@ table.t tr:hover td {
   background: var(--bg-sunken);
 }
 table.t tr.selected td {
-  background: rgba(0, 111, 238, 0.06);
+  background: var(--tint-primary-weak);
 }
 table.t tr:last-child td {
   border-bottom: 0;
@@ -823,8 +823,8 @@ table.t tr:last-child td {
   background: var(--bg-muted);
 }
 .tree-row.selected {
-  background: rgba(0, 111, 238, 0.1);
-  color: #0055b8;
+  background: var(--tint-primary-weak);
+  color: var(--fg-primary-strong);
 }
 .tree-caret {
   width: 14px;
@@ -975,9 +975,9 @@ table.t tr:last-child td {
   color: var(--fg1);
 }
 .preset-pill.active {
-  background: rgba(0, 111, 238, 0.1);
+  background: var(--tint-primary-weak);
   border-color: var(--c-primary);
-  color: #0055b8;
+  color: var(--fg-primary-strong);
   font-weight: var(--fw-medium);
 }
 
@@ -1033,46 +1033,12 @@ table.t tr:last-child td {
 }
 
 /* ---- Dark theme refinements ---- */
-[data-theme='dark'] body {
-  background: #0a0a0a;
-}
 [data-theme='dark'] .app-window {
   background: var(--bg-canvas);
   box-shadow: 0 0 0 1px var(--border-default);
 }
-[data-theme='dark'] .tag-success {
-  background: rgba(23, 201, 100, 0.18);
-  color: #62d893;
-}
-[data-theme='dark'] .tag-warning {
-  background: rgba(245, 165, 36, 0.2);
-  color: #f5c062;
-}
-[data-theme='dark'] .tag-danger {
-  background: rgba(201, 12, 80, 0.2);
-  color: #ff6b9e;
-}
-[data-theme='dark'] .tag-primary {
-  background: rgba(0, 111, 238, 0.22);
-  color: #69b1ff;
-}
-[data-theme='dark'] .tag-purple {
-  background: rgba(147, 83, 211, 0.22);
-  color: #d3adf7;
-}
-[data-theme='dark'] .btn-light {
-  color: #69b1ff;
-}
 [data-theme='dark'] .step.active .step-name {
   color: var(--fg1);
-}
-[data-theme='dark'] .tree-row.selected {
-  background: rgba(0, 111, 238, 0.22);
-  color: #bae0ff;
-}
-[data-theme='dark'] .preset-pill.active {
-  background: rgba(0, 111, 238, 0.22);
-  color: #bae0ff;
 }
 [data-theme='dark'] .traffic-dot.close {
   background: #ff5f57;

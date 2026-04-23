@@ -56,20 +56,18 @@ def test_classify_tag_type_handles_strings_and_enum():
     assert _classify_tag_type(2) == "Digital"
 
 
-def test_build_tree_level_folds_dotted_and_underscore_names():
+def test_build_tree_level_keeps_dotted_and_underscore_names_flat():
     tags = ["AREA1.EQUIP.A", "AREA1.EQUIP.B", "AREA2_LINE_C"]
     nodes = _build_tree_level(tags, prefix="", depth=1)
-    labels = {n["label"] for n in nodes}
-    # Both '.' and '_' act as separators.
-    assert "AREA1" in labels
-    assert "AREA2" in labels
+    assert [n["label"] for n in nodes] == sorted(tags)
+    assert all(n["kind"] == "leaf" for n in nodes)
 
 
 def test_build_tree_level_respects_prefix():
     tags = ["AREA1.EQUIP.A", "AREA1.EQUIP.B", "AREA2.X"]
     under_a1 = _build_tree_level(tags, prefix="AREA1", depth=2)
     labels = {n["label"] for n in under_a1}
-    assert labels == {"EQUIP"}
+    assert labels == {"AREA1.EQUIP.A", "AREA1.EQUIP.B"}
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +169,8 @@ async def test_list_tag_tree_uses_runtime_dbo_tag(patched_pymssql):
     adapter = SqlServerAdapter({"id": "s1", "host": "h", "port": 1433, "timeoutS": 5})
     nodes = await adapter.list_tag_tree(path=None, depth=1)
     labels = {n["label"] for n in nodes}
-    assert "AREA1" in labels and "AREA2" in labels
+    assert "AREA1.EQUIP.A" in labels and "AREA2.X" in labels
+    assert all(n["kind"] == "leaf" for n in nodes)
     assert "Runtime.dbo.Tag" in state["last_sql"]
 
 

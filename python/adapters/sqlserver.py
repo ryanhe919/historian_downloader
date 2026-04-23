@@ -435,53 +435,23 @@ def _format_dt_cell(cell) -> str:
 
 
 def _build_tree_level(tag_names: list[str], prefix: str, depth: int) -> list[dict]:
-    """Split tagnames on '.' or '_' and fold into folder/leaf nodes.
-
-    Wonderware tagnames typically use ``.`` (``AREA.EQUIP.ATTR``) but older
-    InTouch exports use ``_`` — treat both as separators so either works.
-    """
-
-    # Normalise separators to '.' for grouping purposes but keep IDs intact.
-    def parts_of(name: str) -> list[str]:
-        s = name.replace("_", ".")
-        return s.split(".")
-
-    prefix_parts = parts_of(prefix) if prefix else []
-    plen = len(prefix_parts)
-
-    children: dict[str, dict] = {}
-    leaves: list[tuple[str, str]] = []  # (full_id, label)
+    """Return flat leaf nodes without splitting dotted/underscored tag names."""
+    prefix_dot = f"{prefix}." if prefix else ""
+    prefix_underscore = f"{prefix}_" if prefix else ""
+    out: list[dict] = []
+    seen: set[str] = set()
 
     for name in tag_names:
-        p = parts_of(name)
-        if plen and p[:plen] != prefix_parts:
+        if prefix and not (
+            name == prefix
+            or name.startswith(prefix_dot)
+            or name.startswith(prefix_underscore)
+        ):
             continue
-        remainder = p[plen:]
-        if not remainder:
+        if name in seen:
             continue
-        if len(remainder) == 1:
-            leaves.append((name, remainder[0]))
-            continue
-        head = remainder[0]
-        full_head = ".".join(prefix_parts + [head]) if prefix_parts else head
-        bucket = children.setdefault(full_head, {"leaves": set(), "raw": []})
-        bucket["leaves"].add(name)
-        bucket["raw"].append(name)
+        seen.add(name)
+        out.append({"id": name, "label": name, "kind": "leaf"})
 
-    out: list[dict] = []
-    for full_id, label in leaves:
-        out.append({"id": full_id, "label": label, "kind": "leaf"})
-    for full_head, bucket in children.items():
-        short = full_head.split(".")[-1]
-        node: dict = {
-            "id": full_head,
-            "label": short,
-            "kind": "folder",
-            "count": len(bucket["leaves"]),
-            "hasChildren": True,
-        }
-        if depth > 1:
-            node["children"] = _build_tree_level(bucket["raw"], full_head, depth - 1)
-        out.append(node)
-    out.sort(key=lambda n: (0 if n["kind"] == "folder" else 1, n["label"].lower()))
+    out.sort(key=lambda n: n["label"].lower())
     return out

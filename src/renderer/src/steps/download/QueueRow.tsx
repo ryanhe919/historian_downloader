@@ -189,7 +189,7 @@ export function QueueRow({
             style={{
               marginTop: 8,
               padding: '6px 8px',
-              background: 'rgba(201,12,80,0.08)',
+              background: 'var(--tint-danger-weak)',
               borderRadius: 6,
               fontSize: 11,
               color: 'var(--c-danger)'

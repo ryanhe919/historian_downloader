@@ -83,7 +83,9 @@ export function ServerCard({
       onPress={() => onSelect(server.id)}
       style={{
         borderColor: isActive ? 'var(--c-primary)' : undefined,
-        boxShadow: isActive ? '0 0 0 3px rgba(0,111,238,0.15)' : undefined,
+        boxShadow: isActive
+          ? '0 0 0 3px color-mix(in srgb, var(--c-primary) 18%, transparent)'
+          : undefined,
         transition: 'all 160ms'
       }}
       aria-label={`选择 ${server.name}`}
@@ -99,8 +101,8 @@ export function ServerCard({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: isIFix ? 'rgba(0,111,238,0.1)' : 'rgba(120,40,200,0.12)',
-              color: isIFix ? '#0055b8' : '#5b1f9c'
+              background: isIFix ? 'var(--tint-primary-weak)' : 'var(--tint-secondary-weak)',
+              color: isIFix ? 'var(--fg-primary-strong)' : 'var(--fg-secondary-strong)'
             }}
           >
             <Icon name="database" size={22} />

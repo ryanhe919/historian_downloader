@@ -77,7 +77,7 @@ def test_split_times_returns_full_coverage():
         assert a < b
 
 
-def test_build_tree_level_folds_dotted_tagnames():
+def test_build_tree_level_keeps_dotted_tagnames_flat():
     tags = [
         "BOILER_01.TEMP",
         "BOILER_01.PRES",
@@ -85,24 +85,8 @@ def test_build_tree_level_folds_dotted_tagnames():
         "COMP_01.RPM",
     ]
     nodes = _build_tree_level(tags, prefix="", depth=1)
-    # Expect two folders + any top-level leaves (none here).
-    folders = [n for n in nodes if n["kind"] == "folder"]
-    leaves = [n for n in nodes if n["kind"] == "leaf"]
-    assert {f["label"] for f in folders} == {"BOILER_01", "BOILER_02", "COMP_01"}
-    assert leaves == []
-    # BOILER_01 has 2 descendants.
-    b01 = next(f for f in folders if f["label"] == "BOILER_01")
-    assert b01["count"] == 2
-    assert b01["hasChildren"] is True
-
-
-def test_build_tree_level_recurses_with_depth():
-    tags = ["AREA1.EQUIP.ATTR1", "AREA1.EQUIP.ATTR2", "AREA1.OTHER.ATTR"]
-    nodes = _build_tree_level(tags, prefix="", depth=2)
-    area1 = next(n for n in nodes if n["label"] == "AREA1")
-    assert "children" in area1
-    labels = {c["label"] for c in area1["children"]}
-    assert labels == {"EQUIP", "OTHER"}
+    assert all(n["kind"] == "leaf" for n in nodes)
+    assert [n["label"] for n in nodes] == sorted(tags)
 
 
 def test_build_tree_level_with_prefix_returns_children_under_prefix():
@@ -113,7 +97,11 @@ def test_build_tree_level_with_prefix_returns_children_under_prefix():
         "AREA2.EQUIP.X",
     ]
     nodes = _build_tree_level(tags, prefix="AREA1", depth=1)
-    assert {n["label"] for n in nodes} == {"EQUIP", "OTHER"}
+    assert {n["label"] for n in nodes} == {
+        "AREA1.EQUIP.ATTR1",
+        "AREA1.EQUIP.ATTR2",
+        "AREA1.OTHER.ATTR",
+    }
     for n in nodes:
         assert n["id"].startswith("AREA1.")
 
@@ -177,10 +165,8 @@ async def test_list_tag_tree_queries_ihtags_and_builds_tree(patched_environment)
     with patch.object(adapter, "_open_connection", return_value=conn):
         nodes = await adapter.list_tag_tree(path=None, depth=1)
     labels = {n["label"] for n in nodes}
-    assert "BOILER_01" in labels and "BOILER_02" in labels
-    b01 = next(n for n in nodes if n["label"] == "BOILER_01")
-    assert b01["kind"] == "folder"
-    assert b01["count"] == 2
+    assert "BOILER_01.TEMP" in labels and "BOILER_02.TEMP" in labels
+    assert all(n["kind"] == "leaf" for n in nodes)
 
 
 @pytest.mark.asyncio

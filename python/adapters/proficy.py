@@ -478,67 +478,30 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
 
 
 # ---------------------------------------------------------------------------
-# Tag-tree assembly — split tagnames on '.' and fold into folder/leaf nodes
+# Tag-tree assembly — keep historian tag names flat for the UI
 # ---------------------------------------------------------------------------
 
 
 def _build_tree_level(tag_names: list[str], prefix: str, depth: int) -> list[dict]:
-    """Given a flat list of ``foo.bar.baz`` style tagnames, build the direct
-    children under ``prefix`` as TagNode dicts. Recurses up to ``depth``.
+    """Return flat leaf nodes without splitting dotted tag names.
+
+    Users expect ``AREA1.EQUIP.TEMP`` to remain a single selectable label,
+    not a synthetic folder chain. ``prefix`` is treated as an optional
+    startswith filter for compatibility with the RPC shape.
     """
-    children: dict[str, dict] = (
-        {}
-    )  # child segment → {"leaves": set, "nested": set[fullname]}
-    leaf_nodes: dict[str, str] = {}  # full name → ''
     prefix_dot = f"{prefix}." if prefix else ""
-    plen = len(prefix_dot)
+    out: list[dict] = []
+    seen: set[str] = set()
 
     for name in tag_names:
-        if prefix_dot and not name.startswith(prefix_dot):
-            # Top-level call with no prefix handled below.
-            if prefix:
-                continue
-        remainder = name[plen:] if prefix_dot else name
-        if not remainder:
+        if prefix and not (name == prefix or name.startswith(prefix_dot)):
             continue
-        parts = remainder.split(".")
-        if len(parts) == 1:
-            # Leaf directly under prefix.
-            leaf_nodes[name] = parts[0]
+        if name in seen:
             continue
-        head = parts[0]
-        full_head = (prefix_dot + head) if prefix_dot else head
-        bucket = children.setdefault(full_head, {"leaves": set(), "has_sub": False})
-        bucket["has_sub"] = True
-        # Track descendant leaves for count.
-        bucket["leaves"].add(name)
+        seen.add(name)
+        out.append({"id": name, "label": name, "kind": "leaf"})
 
-    out: list[dict] = []
-    for name, label in leaf_nodes.items():
-        out.append(
-            {
-                "id": name,
-                "label": label,
-                "kind": "leaf",
-            }
-        )
-    for full_head, bucket in children.items():
-        short = full_head.split(".")[-1]
-        leaf_count = len(bucket["leaves"])
-        node: dict = {
-            "id": full_head,
-            "label": short,
-            "kind": "folder",
-            "count": leaf_count,
-            "hasChildren": True,
-        }
-        if depth > 1:
-            # Compute children recursively from the filtered descendants.
-            sub_names = [n for n in tag_names if n.startswith(full_head + ".")]
-            node["children"] = _build_tree_level(sub_names, full_head, depth - 1)
-        out.append(node)
-    # Stable ordering: folders first (alphabetical), then leaves.
-    out.sort(key=lambda n: (0 if n["kind"] == "folder" else 1, n["label"].lower()))
+    out.sort(key=lambda n: n["label"].lower())
     return out
 
 

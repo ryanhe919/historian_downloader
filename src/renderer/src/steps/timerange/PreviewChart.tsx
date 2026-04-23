@@ -13,7 +13,7 @@ export interface PreviewChartProps {
   height?: number
 }
 
-const LINE_COLORS = ['#006fee', '#17c964', '#f5a524']
+const LINE_COLORS = ['var(--c-primary)', 'var(--c-success)', 'var(--c-warning)']
 
 export function PreviewChart({ data, height = 200 }: PreviewChartProps): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -38,6 +38,11 @@ export function PreviewChart({ data, height = 200 }: PreviewChartProps): React.J
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, cssW, cssH)
+
+    const css = getComputedStyle(document.documentElement)
+    const lineColors = LINE_COLORS.map((token) => css.getPropertyValue(token).trim() || token)
+    const gridColor = css.getPropertyValue('--border-default').trim() || 'rgba(128,128,128,0.15)'
+    const axisColor = css.getPropertyValue('--fg3').trim() || 'rgba(128,128,128,0.8)'
 
     const padL = 40
     const padR = 10
@@ -64,10 +69,10 @@ export function PreviewChart({ data, height = 200 }: PreviewChartProps): React.J
     const range = max - min || 1
 
     // Grid lines.
-    ctx.strokeStyle = 'rgba(128,128,128,0.15)'
+    ctx.strokeStyle = gridColor
     ctx.lineWidth = 1
     ctx.font = '10px ui-monospace, monospace'
-    ctx.fillStyle = 'rgba(128,128,128,0.8)'
+    ctx.fillStyle = axisColor
     for (let i = 0; i <= 4; i++) {
       const y = padT + (plotH * i) / 4
       ctx.beginPath()
@@ -80,7 +85,7 @@ export function PreviewChart({ data, height = 200 }: PreviewChartProps): React.J
 
     // One polyline per series. Null values break the line.
     series.forEach((row, idx) => {
-      ctx.strokeStyle = LINE_COLORS[idx % LINE_COLORS.length]
+      ctx.strokeStyle = lineColors[idx % lineColors.length]
       ctx.lineWidth = 1.75
       ctx.lineJoin = 'round'
       ctx.beginPath()
@@ -143,7 +148,10 @@ export function PreviewChart({ data, height = 200 }: PreviewChartProps): React.J
                     display: 'inline-block',
                     width: 10,
                     height: 2,
-                    background: LINE_COLORS[i % LINE_COLORS.length],
+                    background:
+                      getComputedStyle(document.documentElement)
+                        .getPropertyValue(LINE_COLORS[i % LINE_COLORS.length])
+                        .trim() || LINE_COLORS[i % LINE_COLORS.length],
                     borderRadius: 1
                   }}
                 />
