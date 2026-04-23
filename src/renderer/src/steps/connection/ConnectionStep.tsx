@@ -187,6 +187,7 @@ export function ConnectionStep(): React.JSX.Element {
       try {
         const res = await testMut.mutate({
           server: {
+            id: statusTargetId ?? undefined,
             type: input.type,
             host: input.host,
             port: input.port,
@@ -225,9 +226,9 @@ export function ConnectionStep(): React.JSX.Element {
         server: {
           name: name.trim(),
           ...input,
-          // Only send the password if the user actually typed one; backend keeps
-          // the existing hash otherwise.
-          password: password ? password : undefined
+          // Blank password + savePassword=false explicitly clears the stored
+          // credential on updates; otherwise we preserve the previous secret.
+          password: savePassword ? (password ? password : undefined) : editingId ? '' : undefined
         }
       })
       toast.success('已保存', { title: res.server.name })

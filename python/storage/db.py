@@ -178,6 +178,15 @@ class Storage:
             ).fetchone()
         return _server_row_to_dict(row) if row else None
 
+    def get_server_runtime(self, server_id: str) -> dict | None:
+        server = self.get_server(server_id)
+        if server is None:
+            return None
+        password = self.get_server_password(server_id)
+        if password:
+            server["password"] = password
+        return server
+
     def list_servers(self) -> list[dict]:
         with self._lock:
             rows = self._conn.execute(

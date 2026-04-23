@@ -89,6 +89,27 @@ def _lookup_server(storage: Storage, server_id: str) -> dict:
     return row
 
 
+def _lookup_runtime_server(storage: Storage, server_id: str) -> dict:
+    """Return a saved server enriched with runtime-only secrets."""
+    row = storage.get_server_runtime(server_id)
+    if row is None:
+        raise errors.ServerNotFound(server_id)
+    return row
+
+
+def _resolve_runtime_server(storage: Storage, server: dict) -> dict:
+    """Merge a transient server payload with any saved runtime secrets."""
+    server_id = server.get("id")
+    saved = _lookup_runtime_server(storage, server_id) if isinstance(server_id, str) else {}
+    runtime = dict(saved)
+    runtime.update(server)
+    if not runtime.get("password") and isinstance(server_id, str):
+        password = storage.get_server_password(server_id)
+        if password is not None:
+            runtime["password"] = password
+    return runtime
+
+
 # ---------------------------------------------------------------------------
 # Method registration
 # ---------------------------------------------------------------------------
@@ -119,7 +140,8 @@ def register_methods(
         params = _ensure_dict(params)
         server = _require(params, "server", dict)
         server_id = server.get("id")
-        adapter = create_adapter(server)
+        runtime_server = _resolve_runtime_server(storage, server)
+        adapter = create_adapter(runtime_server)
 
         async def _emit_status(
             status: str, *, latency_ms=None, error: str | None = None
@@ -184,7 +206,7 @@ def register_methods(
         sid = _require(params, "serverId", str)
         path = params.get("path")
         depth = int(params.get("depth") or 1)
-        server = _lookup_server(storage, sid)
+        server = _lookup_runtime_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.list_tag_tree(path=path, depth=depth)
@@ -204,7 +226,7 @@ def register_methods(
         ftype = filter_.get("type")
         if ftype == "All":
             ftype = None
-        server = _lookup_server(storage, sid)
+        server = _lookup_runtime_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.search_tags(
@@ -220,7 +242,7 @@ def register_methods(
         params = _ensure_dict(params)
         sid = _require(params, "serverId", str)
         tag_id = _require(params, "tagId", str)
-        server = _lookup_server(storage, sid)
+        server = _lookup_runtime_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.get_tag_meta(tag_id)
@@ -251,7 +273,7 @@ def register_methods(
         except ValueError:
             raise errors.InvalidSamplingError(sampling)
         max_points = int(params.get("maxPoints") or 240)
-        server = _lookup_server(storage, sid)
+        server = _lookup_runtime_server(storage, sid)
         adapter = create_adapter(server)
         try:
             return await adapter.preview_sample(

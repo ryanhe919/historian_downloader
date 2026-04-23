@@ -55,7 +55,7 @@ class ExportQueue:
         self._storage = storage
         self._emit = emit
         self._adapter_factory = adapter_factory or create_adapter
-        self._server_provider = server_provider or storage.get_server
+        self._server_provider = server_provider or storage.get_server_runtime
         self._wakeup = asyncio.Event()
         self._controls: dict[str, _TaskControls] = {}
         self._current_task_id: str | None = None

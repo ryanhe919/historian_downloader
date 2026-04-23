@@ -28,7 +28,7 @@ export type ListServersResult = Server[]
 // ---------- historian.testConnection ----------
 
 export interface TestConnectionParams {
-  server: ServerInput
+  server: ServerInput & { id?: string }
 }
 
 export interface TestConnectionResult {
