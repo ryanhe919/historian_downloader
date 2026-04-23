@@ -21,6 +21,7 @@ extraResources:
       - '**/*'
 win:
   executableName: historiandownloader
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -34,6 +35,9 @@ nsis:
   perMachine: false
   allowElevation: true
   allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
   runAfterFinish: true
   deleteAppDataOnUninstall: false
   artifactName: ${name}-${version}-setup.${ext}
