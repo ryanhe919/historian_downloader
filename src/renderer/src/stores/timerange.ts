@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { SamplingMode, TimeRange } from '@shared/domain-types'
 import type { PresetId } from '@/lib/time'
+import { normalizeSamplingMode } from '@/lib/time'
 
 interface TimeRangeState {
   activePreset: PresetId
@@ -31,7 +32,7 @@ export const useTimeRangeStore = create<TimeRangeState>((set) => ({
   ...DEFAULT_STATE,
   setPreset: (p) => set({ activePreset: p }),
   setCustomRange: (r) => set({ customRange: r }),
-  setSampling: (s) => set({ sampling: s }),
+  setSampling: (s) => set({ sampling: normalizeSamplingMode(s) }),
   setSegmentDays: (n) => set({ segmentDays: Math.max(1, Math.min(30, n)) }),
   reset: () => set({ ...DEFAULT_STATE })
 }))

@@ -11,7 +11,7 @@ from typing import Literal, NotRequired, TypedDict
 
 HistorianType = Literal["iFix", "InTouch"]
 ConnStatus = Literal["connected", "ready", "offline"]
-Sampling = Literal["raw", "1m", "5m", "1h"]
+Sampling = str
 ExportFormat = Literal["CSV", "Excel", "JSON"]
 ExportStatus = Literal["queued", "running", "paused", "done", "cancelled", "failed"]
 Quality = Literal["Good", "Uncertain", "Bad"]

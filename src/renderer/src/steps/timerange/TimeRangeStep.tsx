@@ -1,6 +1,6 @@
 /**
  * Step 2 — Time & Sampling. Combines preset pills, custom DatePickers, a
- * SegmentedControl for sampling mode, a 1..30 day slider, and the preview
+ * sampling-interval control, a 1..30 day slider, and the preview
  * (chart + sample table).
  */
 import { useEffect, useMemo } from 'react'
@@ -21,7 +21,7 @@ import {
 import { useRpcQuery } from '@/hooks/useRpc'
 import { formatBytes, formatRows } from '@/lib/format'
 import { isRpcError } from '@/lib/rpc'
-import { presetToRange } from '@/lib/time'
+import { formatSamplingLabel, presetToRange, samplingSeconds } from '@/lib/time'
 import { useConnectionStore } from '@/stores/connection'
 import { useTagsStore } from '@/stores/tags'
 import { useTimeRangeStore } from '@/stores/timerange'
@@ -48,25 +48,10 @@ function useEffectiveRange(): TimeRange | null {
 }
 
 /**
- * Points-per-day by sampling mode — used for the row/size estimates.
- *
- * NOTE: `raw` assumes 1 Hz (86_400 points/day). Real Proficy Historian defaults
- * to 1s sampling but collection rates are tag-specific; treat this as a coarse
- * upper bound for sizing purposes only.
+ * Points-per-day by sampling interval — used for the row/size estimates.
  */
 function pointsPerDay(sampling: SamplingMode): number {
-  switch (sampling) {
-    case 'raw':
-      return 86_400 // 1 Hz assumption — see note above
-    case '1m':
-      return 1_440
-    case '5m':
-      return 288
-    case '1h':
-      return 24
-    default:
-      return 1_440
-  }
+  return 86_400 / samplingSeconds(sampling)
 }
 
 /**
@@ -80,7 +65,7 @@ function previewErrorMessage(err: unknown): string {
     case ErrorCode.INVALID_RANGE:
       return '时间范围无效（开始时间晚于结束时间）'
     case ErrorCode.INVALID_SAMPLING:
-      return '采样模式不支持'
+      return '采样间隔不支持'
     case ErrorCode.TAG_NOT_FOUND:
       return '标签不存在，请回上一步刷新'
     case ErrorCode.OLE_COM_UNAVAILABLE:
@@ -163,7 +148,7 @@ export function TimeRangeStep(): React.JSX.Element {
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 className="page-title">时间与采样</h1>
           <div className="page-sub">
-            选择时间范围、采样方式，并设置分段大小以避免一次性导出过多数据。
+            选择时间范围、采样间隔，并设置分段大小以避免一次性导出过多数据。
           </div>
         </div>
         {isDirty && (
@@ -272,7 +257,7 @@ export function TimeRangeStep(): React.JSX.Element {
             <div className="divider" />
 
             <div className="field-label" style={{ marginBottom: 8 }}>
-              采样方式
+              采样间隔
             </div>
             <SamplingTabs value={sampling} onChange={setSampling} />
 
@@ -292,10 +277,8 @@ export function TimeRangeStep(): React.JSX.Element {
               <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--fg2)', lineHeight: 1.75 }}>
                 按 <strong style={{ color: 'var(--fg1)' }}>{tagIds.length}</strong> 个标签 ·{' '}
                 <strong style={{ color: 'var(--fg1)' }}>{days.toFixed(1)}</strong> 天 ·{' '}
-                <strong style={{ color: 'var(--fg1)' }}>
-                  {sampling === 'raw' ? '原始' : sampling}
-                </strong>{' '}
-                采样计算。
+                <strong style={{ color: 'var(--fg1)' }}>{formatSamplingLabel(sampling)}</strong>{' '}
+                间隔计算。
                 <br />
                 分为 <strong style={{ color: 'var(--fg1)' }}>{segments}</strong> 段，每段{' '}
                 <strong style={{ color: 'var(--fg1)' }}>{segmentDays}</strong> 天。
@@ -311,7 +294,7 @@ export function TimeRangeStep(): React.JSX.Element {
           title="数据预览"
           subtitle={
             previewEnabled
-              ? `前 ${Math.min(3, tagIds.length)} 条标签 · ${sampling === 'raw' ? '原始' : sampling} 采样`
+              ? `前 ${Math.min(3, tagIds.length)} 条标签 · ${formatSamplingLabel(sampling)} 采样`
               : '选中标签并设置时间范围后自动预览'
           }
         />

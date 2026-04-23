@@ -1,4 +1,5 @@
 import type { TimeRange } from '@shared/domain-types'
+import type { SamplingMode } from '@shared/domain-types'
 
 export type PresetId =
   | 'last-1h'
@@ -41,4 +42,36 @@ export function formatRangeShort(range: TimeRange): string {
   const s = range.start.slice(0, 10)
   const e = range.end.slice(0, 10)
   return `${s} ~ ${e}`
+}
+
+export const QUICK_SAMPLING_OPTIONS: { value: SamplingMode; label: string }[] = [
+  { value: '1m', label: '1 分钟' },
+  { value: '5m', label: '5 分钟' },
+  { value: '15m', label: '15 分钟' },
+  { value: '30m', label: '30 分钟' },
+  { value: '60m', label: '1 小时' }
+]
+
+export function normalizeSamplingMode(sampling: string): SamplingMode {
+  if (sampling === '1h') return '60m'
+  if (sampling === 'raw') return 'raw'
+  if (/^[1-9]\d*m$/.test(sampling)) return sampling as SamplingMode
+  return '1m'
+}
+
+export function samplingSeconds(sampling: string): number {
+  if (sampling === 'raw') return 5
+  const normalized = normalizeSamplingMode(sampling)
+  if (normalized === 'raw') return 5
+  const minutes = Number.parseInt(normalized.slice(0, -1), 10)
+  return minutes * 60
+}
+
+export function formatSamplingLabel(sampling: string): string {
+  const normalized = normalizeSamplingMode(sampling)
+  if (normalized === 'raw') return '原始'
+
+  const minutes = Number.parseInt(normalized.slice(0, -1), 10)
+  if (minutes === 60) return '1 小时'
+  return `${minutes} 分钟`
 }

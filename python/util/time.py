@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import re
 
 
 def now_utc() -> datetime:
@@ -77,6 +78,9 @@ SAMPLING_SECONDS: dict[str, int] = {
     "raw": 5,
     "1m": 60,
     "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "60m": 3600,
     "1h": 3600,
 }
 
@@ -84,5 +88,11 @@ SAMPLING_SECONDS: dict[str, int] = {
 def sampling_seconds(sampling: str) -> int:
     try:
         return SAMPLING_SECONDS[sampling]
-    except KeyError as e:
-        raise ValueError(f"unknown sampling: {sampling}") from e
+    except KeyError:
+        pass
+
+    match = re.fullmatch(r"([1-9]\d*)m", sampling)
+    if match:
+        return int(match.group(1)) * 60
+
+    raise ValueError(f"unknown sampling: {sampling}")

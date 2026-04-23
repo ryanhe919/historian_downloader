@@ -1,15 +1,12 @@
 /**
- * SamplingTabs — SegmentedControl wrapper for the 4 sampling modes.
+ * SamplingTabs — quick preset buttons plus a custom-minutes input.
  */
-import { SegmentedControl } from '@/components/ui'
+import { Input, SegmentedControl } from '@/components/ui'
+import { QUICK_SAMPLING_OPTIONS, normalizeSamplingMode } from '@/lib/time'
 import type { SamplingMode } from '@shared/domain-types'
+import { useMemo } from 'react'
 
-const OPTIONS: { value: SamplingMode; label: string }[] = [
-  { value: 'raw', label: '原始' },
-  { value: '1m', label: '1 分钟' },
-  { value: '5m', label: '5 分钟' },
-  { value: '1h', label: '1 小时' }
-]
+type SamplingControlValue = SamplingMode | 'custom'
 
 export interface SamplingTabsProps {
   value: SamplingMode
@@ -17,13 +14,58 @@ export interface SamplingTabsProps {
 }
 
 export function SamplingTabs({ value, onChange }: SamplingTabsProps): React.JSX.Element {
+  const normalized = normalizeSamplingMode(value)
+  const quickValues = useMemo(
+    () => new Set(QUICK_SAMPLING_OPTIONS.map((option) => option.value)),
+    []
+  )
+  const isCustom = !quickValues.has(normalized)
+
+  const options: { value: SamplingControlValue; label: string }[] = [
+    ...QUICK_SAMPLING_OPTIONS,
+    { value: 'custom', label: '自定义' }
+  ]
+
   return (
-    <SegmentedControl<SamplingMode>
-      options={OPTIONS}
-      value={value}
-      onChange={onChange}
-      aria-label="采样方式"
-    />
+    <div style={{ display: 'grid', gap: 10 }}>
+      <SegmentedControl<SamplingControlValue>
+        options={options}
+        value={isCustom ? 'custom' : normalized}
+        onChange={(next) => {
+          if (next === 'custom') {
+            onChange('10m')
+            return
+          }
+          onChange(next)
+        }}
+        aria-label="采样方式"
+      />
+      {isCustom ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 160px) auto',
+            gap: 8,
+            alignItems: 'center'
+          }}
+        >
+          <Input
+            key={normalized}
+            type="number"
+            min={1}
+            step={1}
+            defaultValue={normalized.slice(0, -1)}
+            onChange={(next) => {
+              if (!/^[1-9]\d*$/.test(next)) return
+              onChange(`${next}m` as SamplingMode)
+            }}
+            aria-label="自定义采样分钟数"
+            placeholder="输入分钟数"
+          />
+          <span style={{ fontSize: 12, color: 'var(--fg3)' }}>分钟</span>
+        </div>
+      ) : null}
+    </div>
   )
 }
 

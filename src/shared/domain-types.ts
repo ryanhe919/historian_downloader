@@ -5,7 +5,7 @@ export type HistorianType = 'iFix' | 'InTouch'
 
 export type ConnStatus = 'connected' | 'ready' | 'offline'
 
-export type SamplingMode = 'raw' | '1m' | '5m' | '1h'
+export type SamplingMode = `${number}m` | 'raw' | '1h'
 
 export type ExportFormat = 'CSV' | 'Excel' | 'JSON'
 
