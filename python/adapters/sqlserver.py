@@ -48,11 +48,19 @@ def _format_ts(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def build_openquery_sql(tag: str, start: str, end: str, interval_ms: int) -> str:
-    """Render the legacy OpenQuery(INSQL, ...) template for a single tag.
+def split_tags(tags: list[str], n: int) -> list[list[str]]:
+    """Split tag list into chunks of size ``n``."""
+    if len(tags) < 1:
+        raise ValueError("split_tags: empty input")
+    return [tags[i : i + n] for i in range(0, len(tags), n)]
+
+
+def build_openquery_sql(tags: list[str], start: str, end: str, interval_ms: int) -> str:
+    """Render the legacy OpenQuery(INSQL, ...) template for a tag batch.
 
     Mirrors views.py lines 161-170 closely.
     """
+    tag_list = ", ".join(f"'{_quote(tag)}'" for tag in tags)
     return (
         "SET QUOTED_IDENTIFIER OFF "
         'SELECT * FROM OpenQuery(INSQL, " '
@@ -60,7 +68,7 @@ def build_openquery_sql(tag: str, start: str, end: str, interval_ms: int) -> str
         "WHERE wwVersion = 'Latest' AND wwRetrievalMode = 'Cyclic' "
         f"AND wwResolution = {int(interval_ms)} "
         f"AND DateTime >= '{_quote(start)}' AND DateTime <= '{_quote(end)}' "
-        f"AND History.TagName IN ('{_quote(tag)}') "
+        f"AND History.TagName IN ({tag_list}) "
         '")'
     )
 
@@ -74,6 +82,8 @@ class SqlServerAdapter(BaseHistorianAdapter):
     """Wonderware / InTouch Historian via MS SQL Server (INSQL linked server)."""
 
     DEFAULT_PORT = 1433
+    TAG_BATCH_SIZE = 20
+    QUERY_DELAY_S = 15  # small backoff between SQL calls to ease server load
 
     @classmethod
     def is_available(cls) -> bool:
@@ -173,6 +183,7 @@ class SqlServerAdapter(BaseHistorianAdapter):
 
         try:
             tag_names = await loop.run_in_executor(None, _query)
+            await asyncio.sleep(self.QUERY_DELAY_S)
         except errors.RpcError:
             raise
         except Exception as exc:
@@ -223,6 +234,7 @@ class SqlServerAdapter(BaseHistorianAdapter):
 
         try:
             rows = await loop.run_in_executor(None, _query)
+            await asyncio.sleep(self.QUERY_DELAY_S)
         except errors.RpcError:
             raise
         except Exception as exc:
@@ -280,6 +292,7 @@ class SqlServerAdapter(BaseHistorianAdapter):
 
         try:
             row = await loop.run_in_executor(None, _query)
+            await asyncio.sleep(self.QUERY_DELAY_S)
         except errors.RpcError:
             raise
         except Exception as exc:
@@ -330,13 +343,14 @@ class SqlServerAdapter(BaseHistorianAdapter):
         interval_ms = step_s * 1000
         start_s = _format_ts(start)
         end_s = _format_ts(end)
+        tag_batches = split_tags(tag_ids, self.TAG_BATCH_SIZE)
         loop = asyncio.get_running_loop()
 
-        def _run(tag: str) -> list[tuple]:
+        def _run(tag_batch: list[str]) -> list[tuple]:
             conn = self._connect()
             try:
                 cur = conn.cursor()
-                sql = build_openquery_sql(tag, start_s, end_s, interval_ms)
+                sql = build_openquery_sql(tag_batch, start_s, end_s, interval_ms)
                 log.debug("sqlserver read_segment SQL: %s", sql)
                 cur.execute(sql)
                 return cur.fetchall()
@@ -345,24 +359,28 @@ class SqlServerAdapter(BaseHistorianAdapter):
 
         per_tag: dict[str, dict[str, object]] = {}  # tagname → {dt: value}
         all_ts: set[str] = set()
-        for tag in tag_ids:
+        for batch in tag_batches:
             try:
-                rows = await loop.run_in_executor(None, _run, tag)
+                rows = await loop.run_in_executor(None, _run, batch)
+                await asyncio.sleep(self.QUERY_DELAY_S)
             except errors.RpcError:
                 raise
             except Exception as exc:
                 raise errors.AdapterDriverError(str(exc)) from exc
-            tag_map: dict[str, object] = {}
+            for tag in batch:
+                per_tag.setdefault(tag, {})
             for r in rows:
                 if not r:
                     continue
                 # Legacy view ordering: DateTime, TagName, Value.
                 dt = r[0]
+                tag = r[1] if len(r) > 1 else None
                 val = r[2] if len(r) > 2 else None
+                if not tag:
+                    continue
                 dt_s = _format_dt_cell(dt)
-                tag_map[dt_s] = val
+                per_tag.setdefault(tag, {})[dt_s] = val
                 all_ts.add(dt_s)
-            per_tag[tag] = tag_map
 
         # Emit rows in ascending timestamp order.
         for ts in sorted(all_ts):

@@ -6,10 +6,10 @@
  *     the design prototype 1:1, not the virtualized `<TagTree>` from
  *     components/ui — that one is only worth its weight for >1k leaves).
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Icon, Skeleton } from '@/components/ui'
-import { useRpcQuery } from '@/hooks/useRpc'
 import { isRpcError } from '@/lib/rpc'
+import { call } from '@/lib/rpc'
 import { useConnectionStore } from '@/stores/connection'
 import { useTagsStore } from '@/stores/tags'
 import { ErrorCode } from '@shared/error-codes'
@@ -166,15 +166,64 @@ export function TagSidebar(): React.JSX.Element {
   const setSearch = useTagsStore((s) => s.setSearchQuery)
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [roots, setRoots] = useState<NestedTagNode[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error>()
+  const [reloadKey, setReloadKey] = useState(0)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  const { data, error, loading, refetch } = useRpcQuery(
-    'historian.listTagTree',
-    { serverId: serverId ?? '', depth: 99 },
-    { enabled: !!serverId }
-  )
+  const refetch = useCallback(async (): Promise<void> => {
+    setReloadKey((v) => v + 1)
+  }, [])
 
-  const roots = useMemo<NestedTagNode[]>(() => (data ?? []) as unknown as NestedTagNode[], [data])
+  useEffect(() => {
+    if (!serverId) {
+      setRoots([])
+      setLoading(false)
+      setError(undefined)
+      return
+    }
+
+    let cancelled = false
+
+    const loadAllTags = async (): Promise<void> => {
+      setLoading(true)
+      setError(undefined)
+      try {
+        const limit = 500
+        let offset = 0
+        let total = Infinity
+        const items: NestedTagNode[] = []
+
+        while (offset < total) {
+          const page = await call('historian.searchTags', {
+            serverId,
+            query: '',
+            limit,
+            offset
+          })
+          total = page.total
+          items.push(...(page.items as NestedTagNode[]))
+          if (page.items.length === 0) break
+          offset += page.items.length
+        }
+
+        if (cancelled) return
+        setRoots(items)
+      } catch (e) {
+        if (cancelled) return
+        setRoots([])
+        setError(e as Error)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadAllTags()
+    return () => {
+      cancelled = true
+    }
+  }, [serverId, reloadKey])
 
   const leafIndex = useMemo(() => collectLeafIndex(roots), [roots])
   const filtered = useMemo(

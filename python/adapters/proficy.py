@@ -141,6 +141,7 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
     DEFAULT_PROVIDER = "iHOLEDB.iHistorian.1"
     TAG_BATCH_SIZE = 20  # tags per ihtrend query (legacy default)
     TIME_CHUNK_MIN = 3  # chunk window = interval_min * 1440 * TIME_CHUNK_MIN
+    QUERY_DELAY_S = 15  # small backoff between SQL calls to ease server load
 
     @classmethod
     def is_available(cls) -> bool:
@@ -241,6 +242,7 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
 
         try:
             tag_names = await loop.run_in_executor(None, _query)
+            await asyncio.sleep(self.QUERY_DELAY_S)
         except errors.RpcError:
             raise
         except Exception as exc:
@@ -282,6 +284,7 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
 
         try:
             rows = await loop.run_in_executor(None, _query)
+            await asyncio.sleep(self.QUERY_DELAY_S)
         except errors.RpcError:
             raise
         except Exception as exc:
@@ -331,6 +334,7 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
 
         try:
             row = await loop.run_in_executor(None, _query)
+            await asyncio.sleep(self.QUERY_DELAY_S)
         except errors.RpcError:
             raise
         except Exception as exc:
@@ -423,6 +427,7 @@ class ProficyHistorianAdapter(BaseHistorianAdapter):
                     rows = await loop.run_in_executor(
                         None, _run_one, batch, c_start, c_end
                     )
+                    await asyncio.sleep(self.QUERY_DELAY_S)
                 except errors.RpcError:
                     raise
                 except Exception as exc:

@@ -22,6 +22,7 @@ from adapters.sqlserver import (
     build_openquery_sql,
     _build_tree_level,
     _classify_tag_type,
+    split_tags,
 )
 
 # ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ from adapters.sqlserver import (
 
 def test_build_openquery_sql_matches_legacy_template():
     sql = build_openquery_sql(
-        "AREA1.TEMP", "2026-04-21 00:00:00", "2026-04-22 00:00:00", 60_000
+        ["AREA1.TEMP"], "2026-04-21 00:00:00", "2026-04-22 00:00:00", 60_000
     )
     assert "SET QUOTED_IDENTIFIER OFF" in sql
     assert "OpenQuery(INSQL" in sql
@@ -44,7 +45,7 @@ def test_build_openquery_sql_matches_legacy_template():
 
 
 def test_build_openquery_sql_raw_mode_uses_5s_resolution():
-    sql = build_openquery_sql("X", "2026-04-21 00:00:00", "2026-04-21 01:00:00", 5000)
+    sql = build_openquery_sql(["X"], "2026-04-21 00:00:00", "2026-04-21 01:00:00", 5000)
     assert "wwResolution = 5000" in sql
 
 
@@ -68,6 +69,13 @@ def test_build_tree_level_respects_prefix():
     under_a1 = _build_tree_level(tags, prefix="AREA1", depth=2)
     labels = {n["label"] for n in under_a1}
     assert labels == {"AREA1.EQUIP.A", "AREA1.EQUIP.B"}
+
+
+def test_split_tags_chunks_correctly():
+    assert split_tags(["a", "b", "c", "d", "e"], 2) == [["a", "b"], ["c", "d"], ["e"]]
+    assert split_tags(["only"], 20) == [["only"]]
+    with pytest.raises(ValueError):
+        split_tags([], 10)
 
 
 # ---------------------------------------------------------------------------
@@ -220,28 +228,25 @@ async def test_get_tag_meta_missing_raises(patched_pymssql):
 
 @pytest.mark.asyncio
 async def test_read_segment_uses_openquery_and_merges_rows(patched_pymssql):
-    """read_segment issues one OpenQuery per tag; we verify SQL + merge."""
+    """read_segment batches tags and merges rows across tags by timestamp."""
     captured: list[str] = []
 
-    # Each connection used once per tag.
+    # Each connection used once per tag batch.
     def _connect_factory(*args, **kwargs):
         conn = MagicMock()
         cur = MagicMock()
-        # Rows ordered (DateTime, TagName, Value); one per tag per ts.
         ts1 = datetime(2026, 4, 21, 8, 0, 0, tzinfo=timezone.utc)
         ts2 = datetime(2026, 4, 21, 8, 1, 0, tzinfo=timezone.utc)
-        # Infer tag from the SQL text after execute().
         state = {"rows": []}
 
         def _exec(sql, *a, **kw):
             captured.append(sql)
-            # Distinguish tag1 vs tag2 by TagName in clause.
+            rows: list[tuple] = []
             if "'TAG1'" in sql:
-                state["rows"] = [(ts1, "TAG1", 10.0), (ts2, "TAG1", 11.0)]
-            elif "'TAG2'" in sql:
-                state["rows"] = [(ts1, "TAG2", 20.0), (ts2, "TAG2", 22.0)]
-            else:
-                state["rows"] = []
+                rows.extend([(ts1, "TAG1", 10.0), (ts2, "TAG1", 11.0)])
+            if "'TAG2'" in sql:
+                rows.extend([(ts1, "TAG2", 20.0), (ts2, "TAG2", 22.0)])
+            state["rows"] = rows
 
         cur.execute.side_effect = _exec
         cur.fetchall.side_effect = lambda: list(state["rows"])
@@ -261,11 +266,54 @@ async def test_read_segment_uses_openquery_and_merges_rows(patched_pymssql):
     assert len(rows) == 2
     assert rows[0]["values"] == [10.0, 20.0]
     assert rows[1]["values"] == [11.0, 22.0]
-    # Two OpenQuery invocations (one per tag).
-    assert len(captured) == 2
+    assert rows[0]["quality"] == ["Good", "Good"]
+    assert len(captured) == 1
     assert all("OpenQuery(INSQL" in s for s in captured)
     assert "wwResolution = 60000" in captured[0]
     assert "DateTime >= '2026-04-21 08:00:00'" in captured[0]
+    assert "History.TagName IN ('TAG1', 'TAG2')" in captured[0]
+
+
+@pytest.mark.asyncio
+async def test_read_segment_splits_large_tag_sets_into_batches_of_20(patched_pymssql):
+    captured: list[str] = []
+
+    def _connect_factory(*args, **kwargs):
+        conn = MagicMock()
+        cur = MagicMock()
+        ts = datetime(2026, 4, 21, 8, 0, 0, tzinfo=timezone.utc)
+        state = {"rows": []}
+
+        def _exec(sql, *a, **kw):
+            captured.append(sql)
+            rows: list[tuple] = []
+            for i in range(1, 22):
+                tag = f"TAG{i}"
+                if f"'{tag}'" in sql:
+                    rows.append((ts, tag, float(i)))
+            state["rows"] = rows
+
+        cur.execute.side_effect = _exec
+        cur.fetchall.side_effect = lambda: list(state["rows"])
+        cur.close.return_value = None
+        conn.cursor.return_value = cur
+        conn.close.return_value = None
+        return conn
+
+    patched_pymssql.connect.side_effect = _connect_factory
+
+    adapter = SqlServerAdapter({"id": "s1", "host": "h", "port": 1433, "timeoutS": 5})
+    start = datetime(2026, 4, 21, 8, 0, 0, tzinfo=timezone.utc)
+    end = start + timedelta(minutes=1)
+    tag_ids = [f"TAG{i}" for i in range(1, 22)]
+
+    rows = [r async for r in adapter.read_segment(tag_ids, start, end, "1m")]
+
+    assert len(captured) == 2
+    assert len(rows) == 1
+    assert rows[0]["values"] == [float(i) for i in range(1, 22)]
+    assert "History.TagName IN ('TAG1', 'TAG2'" in captured[0]
+    assert "'TAG21'" in captured[1]
 
 
 @pytest.mark.asyncio
