@@ -189,11 +189,11 @@ export function TagSidebar(): React.JSX.Element {
     const loadAllTags = async (): Promise<void> => {
       setLoading(true)
       setError(undefined)
+      setRoots([])
       try {
         const limit = 500
         let offset = 0
         let total = Infinity
-        const items: NestedTagNode[] = []
 
         while (offset < total) {
           const page = await call('historian.searchTags', {
@@ -203,13 +203,13 @@ export function TagSidebar(): React.JSX.Element {
             offset
           })
           total = page.total
-          items.push(...(page.items as NestedTagNode[]))
+          const batch = page.items as NestedTagNode[]
+          if (!cancelled && batch.length > 0) {
+            setRoots((prev) => [...prev, ...batch])
+          }
           if (page.items.length === 0) break
           offset += page.items.length
         }
-
-        if (cancelled) return
-        setRoots(items)
       } catch (e) {
         if (cancelled) return
         setRoots([])
