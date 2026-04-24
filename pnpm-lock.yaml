@@ -21,8 +21,8 @@ importers:
         specifier: ^3.13.24
         version: 3.13.24(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@timeui/react':
-        specifier: ^1.8.1
-        version: 1.8.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: ^1.9.1
+        version: 1.9.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       debug:
         specifier: ^4.4.3
         version: 4.4.3
@@ -889,15 +889,15 @@ packages:
   '@tanstack/virtual-core@3.14.0':
     resolution: {integrity: sha512-JLANqGy/D6k4Ujmh8Tr25lGimuOXNiaVyXaCAZS0W+1390sADdGnyUdSWNIfd49gebtIxGMij4IktRVzrdr12Q==}
 
-  '@timeui/core@1.4.1':
-    resolution: {integrity: sha512-DA10vcNFWWQkNreVbxFf99iv4rKEL6ikm7Ycg1EHoMH+4BO8PDETAsKoPWxOyMlN/GvMa56z1XBQEBo8YiIqdA==}
+  '@timeui/core@1.4.2':
+    resolution: {integrity: sha512-g5WX+GxK6GbLw/pwJikGwrJ70T+ceypsZXnQBq3+0PRpibKBNLF677qxfGm7dMTTqt0TEx4V7MJsCQRwW0aSjQ==}
     peerDependencies:
       '@emotion/react': ^11.11.0
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@timeui/react@1.8.1':
-    resolution: {integrity: sha512-2jfJUjfnpmxZ0JhOdALvYvaXweNP1Il3gx/Vtl/r6br0OSGYrKW3ExGKjJ0hqktbOn97TZGqYJX+JidoYgCKog==}
+  '@timeui/react@1.9.1':
+    resolution: {integrity: sha512-9b7M0wzFNjQSd1MbP80tMIzUd9+cYR6qTY+H76CePkte7mLWHnJ79omakGifie3WLR4xLapgQYNt2ofzxBsb0w==}
     peerDependencies:
       '@emotion/react': ^11.11.0
       react: '>=18.0.0'
@@ -913,17 +913,17 @@ packages:
       shiki:
         optional: true
 
-  '@timeui/themes@1.2.1':
-    resolution: {integrity: sha512-jMoeZtBMtVs5fz0G24Vb0NCLjuDYPxDxDDNqF/H9Vovqlop4vPL1+JWxLWB7PUFxDYP0vZBiZMtOlR1dAmVWLA==}
+  '@timeui/themes@1.2.2':
+    resolution: {integrity: sha512-9RWZ3aYSFBJjwT7xF6gi/6xkB8qfXisqOoqLGxahUELojbBUL3N3/VKFlYoWOmSd5eCt8cnlYpClda838UxLJw==}
     peerDependencies:
       '@emotion/react': ^11.11.0
       react: '>=18.0.0'
 
-  '@timeui/tokens@1.4.1':
-    resolution: {integrity: sha512-DNp8TzjE0i19LPNmFdvUvuzzPFvPieUcBCtiuDxflRyS5xKK8Yj+uiKQSaJ+jMWI5UzhT9fEInm9nYUcNocyBQ==}
+  '@timeui/tokens@1.4.2':
+    resolution: {integrity: sha512-csKBqqUbgEzarBxtIL6bPRWQHeE2DdHZGPh4pRzGmw43OAM/1CaaF176ZoB/G9wL5bc/+GuWCcmGBKFID2FWnA==}
 
-  '@timeui/utils@1.2.0':
-    resolution: {integrity: sha512-mkSNFd93U7NUraqIefEWeIEz7bv+RBcyrBSDKj8+90/OOJsKvLkunJEzJjUESHYeGv8l8IpNZdoxEsme7Jrmyg==}
+  '@timeui/utils@1.2.1':
+    resolution: {integrity: sha512-IDYNfo2ZOBJGNmnwMEZ9h44anFUw6T1bJTdBVvVz1jnpWDenWHmguUuFK/xp9ALQoQTVPWh/5WNBEwUjT/ZEgA==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -3731,33 +3731,33 @@ snapshots:
 
   '@tanstack/virtual-core@3.14.0': {}
 
-  '@timeui/core@1.4.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@timeui/core@1.4.2(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.5)
-      '@timeui/themes': 1.2.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)
-      '@timeui/tokens': 1.4.1
-      '@timeui/utils': 1.2.0
+      '@timeui/themes': 1.2.2(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)
+      '@timeui/tokens': 1.4.2
+      '@timeui/utils': 1.2.1
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
 
-  '@timeui/react@1.8.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@timeui/react@1.9.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.5)
-      '@timeui/core': 1.4.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@timeui/themes': 1.2.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)
-      '@timeui/tokens': 1.4.1
+      '@timeui/core': 1.4.2(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@timeui/themes': 1.2.2(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)
+      '@timeui/tokens': 1.4.2
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
 
-  '@timeui/themes@1.2.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)':
+  '@timeui/themes@1.2.2(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.5)
-      '@timeui/tokens': 1.4.1
+      '@timeui/tokens': 1.4.2
       react: 19.2.5
 
-  '@timeui/tokens@1.4.1': {}
+  '@timeui/tokens@1.4.2': {}
 
-  '@timeui/utils@1.2.0': {}
+  '@timeui/utils@1.2.1': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
